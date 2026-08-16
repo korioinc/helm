@@ -1,7 +1,6 @@
 # Korio Helm Charts
 
-[![Release Charts](https://github.com/korioinc/helm/actions/workflows/release.yml/badge.svg)](https://github.com/korioinc/helm/actions/workflows/release.yml)
-[![Update Runtime Chart](https://github.com/korioinc/helm/actions/workflows/update-runtime-chart.yml/badge.svg)](https://github.com/korioinc/helm/actions/workflows/update-runtime-chart.yml)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/korioinc)](https://artifacthub.io/packages/search?repo=korioinc)
 
 Official Helm charts maintained by Korio for deploying Multica components on
 Kubernetes.
@@ -26,6 +25,9 @@ List the available charts:
 ```shell
 helm search repo korioinc
 ```
+
+You can also browse the repository on
+[Artifact Hub](https://artifacthub.io/packages/search?repo=korioinc).
 
 ## Install
 
