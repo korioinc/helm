@@ -1,0 +1,7 @@
+.cr-index/
+.cr-release-packages/
+.gh-pages/
+.idea/
+__pycache__/
+*.py[cod]
+*.tgz

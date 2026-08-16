@@ -1,0 +1,34 @@
+apiVersion: v2
+name: multica-runtime-controller
+description: Official Multica daemon with Kubernetes task Pod interception
+type: application
+version: 0.1.0
+appVersion: "0.3.20"
+home: https://github.com/korioinc/multica-runtime-controller
+sources:
+  - https://github.com/korioinc/multica-runtime-controller
+  - https://github.com/korioinc/helm
+maintainers:
+  - name: jskorlol
+    email: jskorlol@gmail.com
+keywords:
+  - multica
+  - agents
+  - ai
+  - runtime
+annotations:
+  artifacthub.io/category: ai-machine-learning
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial chart release for multica-runtime-controller 0.3.20
+  artifacthub.io/images: |
+    - name: multica-runtime-controller
+      image: ghcr.io/korioinc/multica-runtime-controller:0.3.20
+      platforms:
+        - linux/amd64
+        - linux/arm64
+  artifacthub.io/links: |
+    - name: source
+      url: https://github.com/korioinc/multica-runtime-controller
+    - name: support
+      url: https://github.com/korioinc/multica-runtime-controller/issues

@@ -1,0 +1,103 @@
+name: Release Charts
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-charts
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+      - name: Verify chart
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts.test_update_chart
+          helm lint charts/multica-runtime-controller
+          helm template multica-runtime-controller charts/multica-runtime-controller \
+            --namespace multica >/tmp/multica-runtime-controller.yaml
+      - name: Configure Git
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Publish chart release and repository index
+        uses: helm/chart-releaser-action@v1
+        with:
+          version: v1.8.1
+          skip_existing: true
+        env:
+          CR_TOKEN: ${{ github.token }}
+      - name: Check out repository site
+        uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+          path: .gh-pages
+      - name: Sync Artifact Hub and site metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp README.md artifacthub-repo.yml .gh-pages/
+          cat >.gh-pages/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Korio Helm Charts</title></head>
+          <body>
+            <h1>Korio Helm Charts</h1>
+            <p><code>helm repo add korioinc https://korioinc.github.io/helm</code></p>
+            <p><a href="index.yaml">Helm repository index</a></p>
+            <p><a href="https://github.com/korioinc/helm">Source repository</a></p>
+          </body>
+          </html>
+          EOF
+          touch .gh-pages/.nojekyll
+          git -C .gh-pages config user.name github-actions[bot]
+          git -C .gh-pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C .gh-pages add README.md artifacthub-repo.yml index.html .nojekyll
+          if ! git -C .gh-pages diff --cached --quiet; then
+            git -C .gh-pages commit -m "docs: sync repository metadata"
+            git -C .gh-pages push origin gh-pages
+          fi
+
+  deploy-pages:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository site
+        uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+      - name: Stage public files
+        run: |
+          set -euo pipefail
+          mkdir public
+          cp index.yaml artifacthub-repo.yml README.md index.html .nojekyll public/
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

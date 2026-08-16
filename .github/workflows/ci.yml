@@ -1,0 +1,31 @@
+name: Lint and Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+      - name: Test chart update automation
+        run: python3 -m unittest -v scripts.test_update_chart
+      - name: Lint chart
+        run: helm lint charts/multica-runtime-controller
+      - name: Render default chart
+        run: >-
+          helm template multica-runtime-controller
+          charts/multica-runtime-controller
+          --namespace multica
+          > /tmp/multica-runtime-controller.yaml
+      - name: Package chart
+        run: helm package charts/multica-runtime-controller --destination /tmp
