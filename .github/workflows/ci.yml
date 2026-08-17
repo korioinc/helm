@@ -27,5 +27,10 @@ jobs:
           charts/multica-runtime-controller
           --namespace multica
           > /tmp/multica-runtime-controller.yaml
+      - name: Validate rendered chart
+        run: >-
+          go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0
+          -strict -summary -kubernetes-version 1.36.0
+          /tmp/multica-runtime-controller.yaml
       - name: Package chart
         run: helm package charts/multica-runtime-controller --destination /tmp
