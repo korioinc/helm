@@ -1,8 +1,8 @@
 name: Update Runtime Chart
 
 on:
-  repository_dispatch:
-    types: [runtime-released]
+  schedule:
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions: {}
