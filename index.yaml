@@ -1,7 +1,44 @@
----
 apiVersion: v1
 entries:
   multica-runtime-controller:
+  - annotations:
+      artifacthub.io/category: ai-machine-learning
+      artifacthub.io/changes: |
+        - kind: changed
+          description: Update runtime image to 0.3.28
+      artifacthub.io/images: |
+        - name: multica-runtime-controller
+          image: ghcr.io/korioinc/multica-runtime-controller:0.3.28
+          platforms:
+            - linux/amd64
+            - linux/arm64
+      artifacthub.io/links: |
+        - name: source
+          url: https://github.com/korioinc/multica-runtime-controller
+        - name: support
+          url: https://github.com/korioinc/multica-runtime-controller/issues
+    apiVersion: v2
+    appVersion: 0.3.28
+    created: "2026-08-17T18:29:15.281467195Z"
+    description: Official Multica daemon with Kubernetes task Pod interception
+    digest: 8bc0f0c4d84931fb482f9f8428d48e51ca51d7d0492128216c6ebc1efe4644e6
+    home: https://github.com/korioinc/multica-runtime-controller
+    keywords:
+    - multica
+    - agents
+    - ai
+    - runtime
+    maintainers:
+    - email: jskorlol@gmail.com
+      name: jskorlol
+    name: multica-runtime-controller
+    sources:
+    - https://github.com/korioinc/multica-runtime-controller
+    - https://github.com/korioinc/helm
+    type: application
+    urls:
+    - https://github.com/korioinc/helm/releases/download/multica-runtime-controller-0.1.8/multica-runtime-controller-0.1.8.tgz
+    version: 0.1.8
   - annotations:
       artifacthub.io/category: ai-machine-learning
       artifacthub.io/changes: |
@@ -20,7 +57,7 @@ entries:
           url: https://github.com/korioinc/multica-runtime-controller/issues
     apiVersion: v2
     appVersion: 0.3.27
-    created: '2026-08-17T17:04:39.419055529Z'
+    created: "2026-08-17T17:04:39.419055529Z"
     description: Official Multica daemon with Kubernetes task Pod interception
     digest: 1f85a869dfff5f3362c3e1c4f9e1faeea418382cd3b562c950ac189edb66d925
     home: https://github.com/korioinc/multica-runtime-controller
@@ -40,4 +77,4 @@ entries:
     urls:
     - https://github.com/korioinc/helm/releases/download/multica-runtime-controller-0.1.7/multica-runtime-controller-0.1.7.tgz
     version: 0.1.7
-generated: '2026-08-17T17:04:39.419275258Z'
+generated: "2026-08-17T18:29:15.281473593Z"
