@@ -175,15 +175,16 @@ def update_chart(chart_dir: Path, latest: str, digest: str) -> dict[str, object]
     )
 
     image_pattern = re.compile(
-        rf"{re.escape(IMAGE)}@sha256:[0-9a-f]{{64}}"
+        rf"{re.escape(IMAGE)}:{SEMVER_PATTERN}@sha256:[0-9a-f]{{64}}"
     )
     image_references = image_pattern.findall(values)
     if len(image_references) != 2:
         raise ValueError(
-            "expected exactly two digest-pinned runtime image references, "
+            "expected exactly two version-tagged, digest-pinned "
+            "runtime image references, "
             f"found {len(image_references)}"
         )
-    values = image_pattern.sub(f"{IMAGE}@{digest}", values)
+    values = image_pattern.sub(f"{IMAGE}:{latest}@{digest}", values)
 
     chart_path.write_text(chart, encoding="utf-8")
     values_path.write_text(values, encoding="utf-8")

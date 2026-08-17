@@ -34,8 +34,9 @@ helm upgrade --install multica-runtime-controller \
 ```
 
 For a production installation, keep both `controller.image.reference` and
-`runtime.image.reference` on the digest supplied by the chart. Override both
-together when deliberately selecting another published runtime image.
+`runtime.image.reference` on the version-tagged digest supplied by the chart.
+Override both together when deliberately selecting another published runtime
+image.
 
 ## Important values
 
@@ -62,6 +63,6 @@ in the [controller repository](https://github.com/korioinc/multica-runtime-contr
 The chart update workflow polls the public GHCR package hourly and supports the
 same check through manual `workflow_dispatch` execution from GitHub Actions.
 When a run discovers a newer stable runtime, the Helm-owned flow updates
-`appVersion`, both digest-pinned image references, and the Artifact Hub
-annotations, then increments the chart patch version and publishes the new
-package.
+`appVersion`, both version-tagged and digest-pinned image references, and the
+Artifact Hub annotations, then increments the chart patch version and publishes
+the new package.

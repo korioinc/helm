@@ -27,7 +27,7 @@ class UpdateChartTest(unittest.TestCase):
     def test_bump_patch_uses_chart_version_not_application_version(self) -> None:
         self.assertEqual(bump_patch("1.2.9"), "1.2.10")
 
-    def test_update_chart_bumps_chart_and_application_versions_and_digest(self) -> None:
+    def test_update_chart_bumps_chart_app_version_tag_and_digest(self) -> None:
         digest = "sha256:" + "b" * 64
         with tempfile.TemporaryDirectory() as temp_dir:
             chart_dir = Path(temp_dir)
@@ -51,10 +51,10 @@ annotations:
             values_path.write_text(
                 """runtime:
   image:
-    reference: ghcr.io/korioinc/multica-runtime-controller@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.20@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 controller:
   image:
-    reference: ghcr.io/korioinc/multica-runtime-controller@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.20@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 """,
                 encoding="utf-8",
             )
@@ -83,7 +83,11 @@ controller:
                 "image: ghcr.io/korioinc/multica-runtime-controller:0.3.21",
                 chart,
             )
-            self.assertEqual(values.count(f"reference: ghcr.io/korioinc/multica-runtime-controller@{digest}"), 2)
+            expected_reference = (
+                "reference: ghcr.io/korioinc/"
+                f"multica-runtime-controller:0.3.21@{digest}"
+            )
+            self.assertEqual(values.count(expected_reference), 2)
 
     def test_update_chart_is_noop_when_latest_is_not_newer(self) -> None:
         digest = "sha256:" + "b" * 64
