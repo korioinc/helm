@@ -59,7 +59,10 @@ in the [controller repository](https://github.com/korioinc/multica-runtime-contr
 
 ## Release automation
 
-The repository checks the public GHCR package every hour. When a newer stable
-semantic-version image tag is available, automation updates `appVersion`, both
-digest-pinned image references, and the Artifact Hub annotations, then increments
-the chart patch version and publishes the new package.
+After publishing a verified multi-platform image and GitHub Release, the runtime
+repository sends a `runtime-released` repository dispatch with the runtime
+version, manifest digest, and source revision. The chart update workflow also
+supports manual `workflow_dispatch` execution from GitHub Actions. Each run
+checks the public GHCR package, updates `appVersion`, both digest-pinned image
+references, and the Artifact Hub annotations, then increments the chart patch
+version and publishes the new package.
