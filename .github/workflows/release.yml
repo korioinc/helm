@@ -30,6 +30,9 @@ jobs:
           helm lint charts/multica-runtime-controller
           helm template multica-runtime-controller charts/multica-runtime-controller \
             --namespace multica >/tmp/multica-runtime-controller.yaml
+          go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0 \
+            -strict -summary -kubernetes-version 1.36.0 \
+            /tmp/multica-runtime-controller.yaml
       - name: Configure Git
         run: |
           git config user.name github-actions[bot]
