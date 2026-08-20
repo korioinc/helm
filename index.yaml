@@ -5,6 +5,44 @@ entries:
       artifacthub.io/category: ai-machine-learning
       artifacthub.io/changes: |
         - kind: changed
+          description: Update runtime image to 0.3.30
+      artifacthub.io/images: |
+        - name: multica-runtime-controller
+          image: ghcr.io/korioinc/multica-runtime-controller:0.3.30
+          platforms:
+            - linux/amd64
+            - linux/arm64
+      artifacthub.io/links: |
+        - name: source
+          url: https://github.com/korioinc/multica-runtime-controller
+        - name: support
+          url: https://github.com/korioinc/multica-runtime-controller/issues
+    apiVersion: v2
+    appVersion: 0.3.30
+    created: "2026-08-20T05:34:55.252858903Z"
+    description: Official Multica daemon with Kubernetes task Pod interception
+    digest: 682478bec83138cb74e0ab1dc540fa390cfc78497056fa2f36879fc9c20959ef
+    home: https://github.com/korioinc/multica-runtime-controller
+    keywords:
+    - multica
+    - agents
+    - ai
+    - runtime
+    maintainers:
+    - email: jskorlol@gmail.com
+      name: jskorlol
+    name: multica-runtime-controller
+    sources:
+    - https://github.com/korioinc/multica-runtime-controller
+    - https://github.com/korioinc/helm
+    type: application
+    urls:
+    - https://github.com/korioinc/helm/releases/download/multica-runtime-controller-0.1.10/multica-runtime-controller-0.1.10.tgz
+    version: 0.1.10
+  - annotations:
+      artifacthub.io/category: ai-machine-learning
+      artifacthub.io/changes: |
+        - kind: changed
           description: Update runtime image to 0.3.29
       artifacthub.io/images: |
         - name: multica-runtime-controller
@@ -115,4 +153,4 @@ entries:
     urls:
     - https://github.com/korioinc/helm/releases/download/multica-runtime-controller-0.1.7/multica-runtime-controller-0.1.7.tgz
     version: 0.1.7
-generated: "2026-08-18T13:46:23.952735545Z"
+generated: "2026-08-20T05:34:55.252875753Z"
