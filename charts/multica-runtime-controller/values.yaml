@@ -10,7 +10,7 @@ runtime:
   name: runtime-controller
   image:
     # The version tag is readable while the digest keeps the image immutable.
-    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.29@sha256:7c208ddc95efdef04c1cf8d952b447e56ed25319ea9d0cb7e1f40b2426697505
+    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.30@sha256:641e8ec9bc564b8da80550cbae11a095c1c401087794c14e74c2c9ead9dd20bb
     pullPolicy: IfNotPresent
   # The official Multica daemon detects the provider shims from PATH.
   capacity: 20
@@ -48,7 +48,7 @@ runtime:
 
 controller:
   image:
-    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.29@sha256:7c208ddc95efdef04c1cf8d952b447e56ed25319ea9d0cb7e1f40b2426697505
+    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.30@sha256:641e8ec9bc564b8da80550cbae11a095c1c401087794c14e74c2c9ead9dd20bb
     pullPolicy: IfNotPresent
   resources:
     requests:

@@ -2,8 +2,8 @@ apiVersion: v2
 name: multica-runtime-controller
 description: Official Multica daemon with Kubernetes task Pod interception
 type: application
-version: 0.1.9
-appVersion: "0.3.29"
+version: 0.1.10
+appVersion: "0.3.30"
 home: https://github.com/korioinc/multica-runtime-controller
 sources:
   - https://github.com/korioinc/multica-runtime-controller
@@ -20,10 +20,10 @@ annotations:
   artifacthub.io/category: ai-machine-learning
   artifacthub.io/changes: |
     - kind: changed
-      description: Update runtime image to 0.3.29
+      description: Update runtime image to 0.3.30
   artifacthub.io/images: |
     - name: multica-runtime-controller
-      image: ghcr.io/korioinc/multica-runtime-controller:0.3.29
+      image: ghcr.io/korioinc/multica-runtime-controller:0.3.30
       platforms:
         - linux/amd64
         - linux/arm64
