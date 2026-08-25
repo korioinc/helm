@@ -1,4 +1,4 @@
-name: Update Runtime Chart
+name: Update Multica Runtime Controller Chart
 
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: update-runtime-chart
+  group: update-multica-runtime-controller-chart
   cancel-in-progress: false
 
 jobs:
