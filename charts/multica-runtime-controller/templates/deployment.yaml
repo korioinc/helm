@@ -78,10 +78,8 @@ spec:
             - /opt/multica/core/runtime
             - workspace
             - layout
-            {{- range .Values.operator.configMounts }}
-            {{- if ne (dir .mountPath) "/home/multica/agents" }}
-            - {{ printf "--home-parent=%s" (dir .mountPath) | quote }}
-            {{- end }}
+            {{- range $index, $mount := .Values.operator.configMounts }}
+            - {{ printf "--config-copy=%s" (dict "source" (printf "/opt/multica/config-input/%d" $index) "target" $mount.mountPath | toJson) | quote }}
             {{- end }}
           env:
             {{- include "multica-runtime-controller.environmentEnv" . | nindent 12 }}
@@ -94,6 +92,14 @@ spec:
             - {name: workspace, mountPath: /workspace}
             - {name: agent-home, mountPath: /home/multica/agents}
             - {name: environment-config, mountPath: /etc/multica/environment, readOnly: true}
+            {{- range $index, $mount := .Values.operator.configMounts }}
+            - name: {{ $mount.name }}
+              mountPath: {{ printf "/opt/multica/config-input/%d" $index | quote }}
+              readOnly: true
+              {{- with $mount.subPath }}
+              subPath: {{ . | quote }}
+              {{- end }}
+            {{- end }}
         - name: environment-defaults
           image: {{ .Values.environment.image.reference | quote }}
           imagePullPolicy: {{ .Values.environment.image.pullPolicy }}
@@ -244,9 +250,6 @@ spec:
             - {name: workspace, mountPath: /workspace}
             - {name: agent-home, mountPath: /home/multica/agents}
             - {name: workspace, mountPath: /home/multica/agents/.multica/pi-sessions, subPath: .multica-runtime/sessions}
-            {{- with .Values.operator.configMounts }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
       volumes:
         - {name: core, emptyDir: {}}
         - {name: tmp, emptyDir: {}}

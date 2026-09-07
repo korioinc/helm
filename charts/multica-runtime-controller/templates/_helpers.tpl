@@ -34,7 +34,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 
 {{- define "multica-runtime-controller.bootstrapScript" -}}
 {{- if eq .Values.environment.bootstrap.source "bundled" -}}
-{{- .Files.Get "files/environments/default.sh" -}}
+{{- .Files.Get "files/environments/node-providers.sh" -}}
 {{- else if eq .Values.environment.bootstrap.source "inline" -}}
 {{- .Values.environment.bootstrap.script -}}
 {{- end -}}
@@ -115,8 +115,8 @@ capabilities:
 {{- range .Values.operator.configMounts -}}
 {{- if not (hasKey $volumes .name) -}}{{- fail "operator.configMounts references an unknown configVolume" -}}{{- end -}}
 {{- $path := clean .mountPath -}}
-{{- if or (ne $path .mountPath) (not (hasPrefix "/home/multica/agents/" $path)) (eq $path "/home/multica/agents/.multica") (eq $path "/home/multica/agents/.multica/config.json") (hasPrefix "/home/multica/agents/.multica/config.json/" $path) (eq $path "/home/multica/agents/.multica/pi-sessions") (hasPrefix "/home/multica/agents/.multica/pi-sessions/" $path) (eq $path "/home/multica/agents/.codex") (eq $path "/home/multica/agents/.codex/skills") (hasPrefix "/home/multica/agents/.codex/skills/" $path) (eq $path "/home/multica/agents/.pi") (eq $path "/home/multica/agents/.pi/agent") (hasPrefix "/home/multica/agents/.pi/agent/sessions" $path) -}}
-{{- fail "operator.configMounts must use canonical native HOME paths and cannot override runtime or session state" -}}
+{{- if or (ne $path .mountPath) (not (hasPrefix "/home/multica/agents/" $path)) (eq $path "/home/multica/agents/.multica/config.json") (hasPrefix "/home/multica/agents/.multica/config.json/" $path) (eq $path "/home/multica/agents/.multica/pi-sessions") (hasPrefix "/home/multica/agents/.multica/pi-sessions/" $path) (eq $path "/home/multica/agents/.codex/skills") (hasPrefix "/home/multica/agents/.codex/skills/" $path) (eq $path "/home/multica/agents/.pi/agent/sessions") (hasPrefix "/home/multica/agents/.pi/agent/sessions/" $path) -}}
+{{- fail "operator.configMounts must copy to canonical native HOME paths and cannot override runtime or session state" -}}
 {{- end -}}
 {{- range $other := $mountPaths -}}
 {{- if or (eq $path $other) (hasPrefix (printf "%s/" $path) $other) (hasPrefix (printf "%s/" $other) $path) -}}{{- fail "operator.configMounts paths cannot overlap" -}}{{- end -}}

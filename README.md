@@ -39,19 +39,24 @@ kubectl --namespace multica create secret generic multica-runtime-controller-tok
   --from-literal=token='mul_...'
 ```
 
-Install or upgrade the runtime controller:
+Configure a digest-pinned execution image, a nonempty provider list and an inline
+or ConfigMap bootstrap in `values.yaml`, then install or upgrade the controller:
 
 ```shell
 helm upgrade --install multica-runtime-controller \
   korioinc/multica-runtime-controller \
   --namespace multica \
+  -f values.yaml \
   --set multica.baseURL=https://multica.example.com
 ```
 
-Chart 0.2.0 includes a digest-pinned runtime core 0.3.38 and requires separate
-tools/workspace PVCs. A custom compatible core pin is optional. Old combined images
-and old values are incompatible. See the chart README for the environment image,
-bootstrap, RWO scheduling and credential inputs.
+Chart 0.3.0 requires runtime core 0.3.39 or later and leaves the execution
+environment unconfigured. No language or provider installation is selected by
+default. Image, providers and bootstrap must be supplied explicitly; the opt-in
+installer examples are described in the chart README. Separate tools/workspace
+PVCs are required. Operator configuration is copied into writable private provider
+homes during init. Upgrade the chart and its pinned core together; old combined
+images and old values are incompatible.
 
 ## Configuration
 
