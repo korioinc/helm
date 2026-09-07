@@ -23,16 +23,8 @@ jobs:
           fetch-depth: 0
       - name: Install Helm
         uses: azure/setup-helm@v5
-      - name: Verify chart
-        run: |
-          set -euo pipefail
-          python3 -m unittest -v scripts.test_update_chart
-          helm lint charts/multica-runtime-controller
-          helm template multica-runtime-controller charts/multica-runtime-controller \
-            --namespace multica >/tmp/multica-runtime-controller.yaml
-          go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0 \
-            -strict -summary -kubernetes-version 1.36.0 \
-            /tmp/multica-runtime-controller.yaml
+      - name: Verify pinned core and chart profiles
+        run: scripts/verify-chart.sh --release
       - name: Configure Git
         run: |
           git config user.name github-actions[bot]

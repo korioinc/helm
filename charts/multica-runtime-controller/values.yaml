@@ -1,79 +1,57 @@
 replicaCount: 1
-
+imagePullSecrets: []
 multica:
   baseURL: https://multica.example.com
-  controllerTokenSecret:
-    name: multica-runtime-controller-token
-    key: token
-
+  controllerTokenSecret: {name: multica-runtime-controller-token, key: token}
 runtime:
   name: runtime-controller
   image:
-    # The version tag is readable while the digest keeps the image immutable.
-    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.36@sha256:f8da680a3e1ff0abc34d6010af16cb671364178919185b5b50392edc77627660
+    # Required: a digest of the new contract-version-1 core artifact.
+    reference: ""
     pullPolicy: IfNotPresent
-  # The official Multica daemon detects the provider shims from PATH.
   capacity: 20
   pollInterval: 10s
   heartbeatInterval: 15s
-  taskDeadline: 6h
-  pi:
-    # Pi packages execute arbitrary code with task credentials and workspace access.
-    # Each source is installed by Pi itself into its default ~/.pi/agent directory.
-    # An unversioned npm source resolves the latest release at install time; use
-    # an exact npm version when rollout reproducibility is required. Pin Git refs.
-    packages: []
-    # Optional non-secret Pi configuration copied into the persistent default
-    # Pi home before package installation. Authentication files must never be stored here.
-    configMapName: ""
-    configMapItems: []
-  workerResources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: "2"
-      memory: 4Gi
-  # Native Pod volume and volumeMount fragments mounted into the daemon and
-  # every intercepted task Pod. One projected volume may have multiple mounts.
-  # Keep mounts read-only. ConfigMap, Secret, and projected volumes are allowed.
-  # Kubernetes EnvFromSource fragments added to the daemon container. Provider
-  # credentials inherited by the daemon are forwarded to intercepted tasks.
-  extraEnvFrom: []
-  # Kubernetes EnvVar fragments added to the daemon container. Use this for
-  # explicit aliases such as mapping a provider Secret key to GH_TOKEN.
-  extraEnv: []
-  extraVolumes: []
-  extraVolumeMounts: []
-
-controller:
+environment:
   image:
-    reference: ghcr.io/korioinc/multica-runtime-controller:0.3.36@sha256:f8da680a3e1ff0abc34d6010af16cb671364178919185b5b50392edc77627660
+    reference: docker.io/library/buildpack-deps:bookworm-scm@sha256:4274ea4975976f86239384ac206f98af5f0978fd8f054886eec1371fc7664025
     pullPolicy: IfNotPresent
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 65532
-    runAsGroup: 65532
-    allowPrivilegeEscalation: false
-    readOnlyRootFilesystem: true
-
+  platform: linux/amd64
+  providers: [pi, codex, copilot, antigravity]
+  bootstrap:
+    source: bundled
+    revision: default-1
+    script: ""
+    configMap: {name: "", key: "", sha256: ""}
+    env: {}
+    secretEnvFrom: []
+    timeout: 1200
+    resources:
+      requests: {cpu: 500m, memory: 1Gi}
+      limits: {cpu: "2", memory: 4Gi}
+  storage: {existingClaim: "", size: 20Gi, storageClass: "", accessMode: ReadWriteMany}
 workspace:
-  claimName: multica-runtime-workspace
-  storageClassName: ""
-  accessModes:
-    - ReadWriteMany
-  size: 100Gi
-
-podDisruptionBudget:
-  enabled: true
-  maxUnavailable: 1
-
-networkPolicy:
-  enabled: true
+  storage: {existingClaim: "", size: 100Gi, storageClass: "", accessMode: ReadWriteMany}
+operator:
+  # Controller/provider/task configuration; never supplied to bootstrap.
+  envFrom: []
+  env: []
+  configVolumes: []
+  configMounts: []
+controller:
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+worker:
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {cpu: "2", memory: 4Gi}
+  taskDeadline: 21600
+  terminationGraceSeconds: 10
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  # Node metadata.name; required if either PVC uses ReadWriteOnce.
+  singleNodeName: ""
+podDisruptionBudget: {enabled: true, maxUnavailable: 1}
+networkPolicy: {enabled: true}

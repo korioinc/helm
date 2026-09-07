@@ -6,7 +6,7 @@ metadata:
     {{- include "multica-runtime-controller.labels" . | nindent 4 }}
     app.kubernetes.io/component: controller
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -16,133 +16,175 @@ spec:
       app.kubernetes.io/component: controller
   template:
     metadata:
+      annotations:
+        multica.io/environment-id: {{ include "multica-runtime-controller.environmentID" . | quote }}
+        checksum/worker-config: {{ include (print $.Template.BasePath "/worker-config.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/environment-config.yaml") . | sha256sum }}
       labels:
         app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: controller
     spec:
+      automountServiceAccountToken: false
       serviceAccountName: {{ include "multica-runtime-controller.fullname" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      nodeSelector:
+        {{- include "multica-runtime-controller.nodeSelector" . | fromJson | toYaml | nindent 8 }}
+      {{- with .Values.scheduling.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduling.singleNodeName }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchFields:
+                  - key: metadata.name
+                    operator: In
+                    values: [{{ . | quote }}]
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
         runAsGroup: 65532
         fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       initContainers:
-        - name: tmp-permissions
-          image: {{ .Values.controller.image.reference | quote }}
-          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
-          command: ["/bin/sh", "-ec"]
-          args: ["chmod 1777 /tmp"]
-          resources:
-            {{- toYaml .Values.controller.resources | nindent 12 }}
-          securityContext:
-            runAsNonRoot: false
-            runAsUser: 0
-            runAsGroup: 0
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-        - name: provider-home-init
-          image: {{ .Values.controller.image.reference | quote }}
-          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
-          command: ["/bin/sh", "-ec"]
-          args:
-            - |
-              install -d -m 0700 \
-                /var/run/multica/agent-home/home \
-                /var/run/multica/agent-home/home/.codex \
-                /var/run/multica/agent-home/home/.multica
-              mkdir -p \
-                /workspace/.pi/agent \
-                /workspace/.multica/pi-sessions
-              {{- if .Values.runtime.pi.configMapName }}
-              (
-                cd /var/run/multica/pi-config
-                find -L . -type f ! -name auth.json ! -path './..*' -exec cp --parents '{}' /workspace/.pi/ \;
-              )
-              chmod -R u+rwX /workspace/.pi
-              {{- end }}
-              node <<'NODE'
-              const fs = require("fs");
-              const path = "/workspace/.pi/agent/settings.json";
-              const settings = fs.existsSync(path)
-                ? JSON.parse(fs.readFileSync(path, "utf8"))
-                : {};
-              settings.packages = [];
-              fs.writeFileSync(path, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 });
-              NODE
-          resources:
-            {{- toYaml .Values.controller.resources | nindent 12 }}
-          securityContext:
-            {{- toYaml .Values.controller.securityContext | nindent 12 }}
-            capabilities:
-              drop: ["ALL"]
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-            - name: workspace
-              mountPath: /workspace
-            - name: agent-home
-              mountPath: /var/run/multica/agent-home
-            {{- if .Values.runtime.pi.configMapName }}
-            - name: pi-config
-              mountPath: /var/run/multica/pi-config
-              readOnly: true
-            {{- end }}
-        {{- range $index, $package := .Values.runtime.pi.packages }}
-        - name: pi-package-{{ $index }}
-          image: {{ $.Values.controller.image.reference | quote }}
-          imagePullPolicy: {{ $.Values.controller.image.pullPolicy }}
-          command: ["/opt/multica/providers/bin/pi"]
-          args: ["install", {{ $package | quote }}]
+        - name: core-materialize
+          image: {{ .Values.runtime.image.reference | quote }}
+          imagePullPolicy: {{ .Values.runtime.image.pullPolicy }}
+          command: ["/artifact/runtime", "materialize"]
           env:
-            - name: HOME
-              value: /home/multica/agents
-            - name: TMPDIR
-              value: /tmp
-            - name: npm_config_cache
-              value: /tmp/npm-cache
+            {{- include "multica-runtime-controller.environmentEnv" . | nindent 12 }}
+            - name: MULTICA_TOOLS_STORE
+              value: /tools-store
           resources:
-            {{- toYaml $.Values.controller.resources | nindent 12 }}
+            {{- toYaml .Values.controller.resources | nindent 12 }}
           securityContext:
-            {{- toYaml $.Values.controller.securityContext | nindent 12 }}
-            capabilities:
-              drop: ["ALL"]
+            {{- include "multica-runtime-controller.securityContext" . | nindent 12 }}
           volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-            - name: workspace
-              mountPath: /workspace
-            - name: agent-home
-              mountPath: /home/multica/agents
-              subPath: home
-            - name: workspace
-              mountPath: /home/multica/agents/.pi
-              subPath: .pi
-        {{- end }}
-      containers:
-        - name: controller
-          image: {{ .Values.controller.image.reference | quote }}
-          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
-          tty: true
-          workingDir: /home/multica/agents
-          args: ["daemon"]
-          {{- with .Values.runtime.extraEnvFrom }}
+            - {name: core, mountPath: /opt/multica/core}
+            - {name: tools, mountPath: /tools-store}
+            - {name: environment-config, mountPath: /etc/multica/environment, readOnly: true}
+        - name: workspace-layout
+          image: {{ .Values.environment.image.reference | quote }}
+          imagePullPolicy: {{ .Values.environment.image.pullPolicy }}
+          command:
+            - /opt/multica/core/runtime
+            - workspace
+            - layout
+            {{- range .Values.operator.configMounts }}
+            {{- if ne (dir .mountPath) "/home/multica/agents" }}
+            - {{ printf "--home-parent=%s" (dir .mountPath) | quote }}
+            {{- end }}
+            {{- end }}
+          env:
+            {{- include "multica-runtime-controller.environmentEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+          securityContext:
+            {{- include "multica-runtime-controller.securityContext" . | nindent 12 }}
+          volumeMounts:
+            - {name: core, mountPath: /opt/multica/core, readOnly: true}
+            - {name: workspace, mountPath: /workspace}
+            - {name: agent-home, mountPath: /home/multica/agents}
+            - {name: environment-config, mountPath: /etc/multica/environment, readOnly: true}
+        - name: environment-defaults
+          image: {{ .Values.environment.image.reference | quote }}
+          imagePullPolicy: {{ .Values.environment.image.pullPolicy }}
+          command: ["/opt/multica/core/runtime", "environment", "capture"]
+          env:
+            - name: MULTICA_ENVIRONMENT_BASE_ENV_FILE
+              value: /run/multica/image-env.json
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+          securityContext:
+            {{- include "multica-runtime-controller.securityContext" . | nindent 12 }}
+          volumeMounts:
+            - {name: core, mountPath: /opt/multica/core, readOnly: true}
+            - {name: run, mountPath: /run/multica}
+        - name: environment-prepare
+          image: {{ .Values.environment.image.reference | quote }}
+          imagePullPolicy: {{ .Values.environment.image.pullPolicy }}
+          command: ["/opt/multica/core/runtime", "environment", "prepare"]
+          {{- with .Values.environment.bootstrap.secretEnvFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
-            {{- with .Values.runtime.extraEnv }}
-            {{- toYaml . | nindent 12 }}
+            {{- include "multica-runtime-controller.environmentEnv" . | nindent 12 }}
+            - name: MULTICA_ENVIRONMENT_SCRIPT_FILE
+              value: /etc/multica/bootstrap/bootstrap.sh
+            - name: MULTICA_ENVIRONMENT_BASE_ENV_FILE
+              value: /run/multica/image-env.json
+            - name: MULTICA_ENVIRONMENT_LOCK_FILE
+              value: /run/multica/prepare.lock
+            - name: MULTICA_ENVIRONMENT_TIMEOUT_SECONDS
+              value: {{ .Values.environment.bootstrap.timeout | quote }}
+            - name: HOME
+              value: /tmp/bootstrap-home
+            - name: TMPDIR
+              value: /tmp
+          resources:
+            {{- toYaml .Values.environment.bootstrap.resources | nindent 12 }}
+          securityContext:
+            {{- include "multica-runtime-controller.securityContext" . | nindent 12 }}
+          volumeMounts:
+            - {name: core, mountPath: /opt/multica/core, readOnly: true}
+            - name: tools
+              mountPath: /opt/multica/environment
+              subPath: generations/{{ include "multica-runtime-controller.environmentID" . }}
+            - name: tools
+              mountPath: /run/multica/prepare.lock
+              subPath: locks/{{ include "multica-runtime-controller.environmentID" . }}.lock
+            - {name: run, mountPath: /run/multica, readOnly: true}
+            - {name: bootstrap-tmp, mountPath: /tmp}
+            - {name: environment-config, mountPath: /etc/multica/environment, readOnly: true}
+            - {name: bootstrap-script, mountPath: /etc/multica/bootstrap, readOnly: true}
+      containers:
+        - name: controller
+          image: {{ .Values.environment.image.reference | quote }}
+          imagePullPolicy: {{ .Values.environment.image.pullPolicy }}
+          command: ["/opt/multica/core/runtime", "controller"]
+          workingDir: /home/multica/agents
+          {{- with .Values.operator.envFrom }}
+          envFrom:
+            {{- range . }}
+            - prefix: {{ printf "MULTICA_OPERATOR_%s" (default "" .prefix) | quote }}
+              {{- with .secretRef }}
+              secretRef:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with .configMapRef }}
+              configMapRef:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
             {{- end }}
+          {{- end }}
+          env:
+            {{- range .Values.operator.env }}
+            - name: {{ printf "MULTICA_OPERATOR_%s" .name | quote }}
+              {{- if hasKey . "value" }}
+              value: {{ .value | quote }}
+              {{- end }}
+              {{- with .valueFrom }}
+              valueFrom:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+            {{- end }}
+            {{- include "multica-runtime-controller.environmentEnv" . | nindent 12 }}
             - name: HOME
               value: /home/multica/agents
+            - name: TMPDIR
+              value: /tmp
+            - name: MULTICA_WORKER_CONFIG_FILE
+              value: /etc/multica/environment/worker.json
             - name: MULTICA_BASE_URL
               value: {{ .Values.multica.baseURL | quote }}
             - name: MULTICA_DAEMON_ID
@@ -151,103 +193,92 @@ spec:
                   name: {{ include "multica-runtime-controller.identitySecretName" . }}
                   key: daemon-id
             - name: MULTICA_CONTROLLER_TOKEN_FILE
-              value: /var/run/multica/controller/token
-            - name: MULTICA_RUNTIME_IMAGE
-              value: {{ .Values.runtime.image.reference | quote }}
-            - name: MULTICA_RUNTIME_IMAGE_PULL_POLICY
-              value: {{ .Values.runtime.image.pullPolicy | quote }}
+              value: /run/multica/controller/token
             - name: MULTICA_DAEMON_PROXY_URL
-              value: {{ printf "http://%s:19515" (include "multica-runtime-controller.daemonProxyServiceName" .) | quote }}
+              value: {{ printf "http://%s:8080" (include "multica-runtime-controller.daemonProxyServiceName" .) | quote }}
             - name: MULTICA_RUNTIME_NAME
               value: {{ .Values.runtime.name | quote }}
-            - name: MULTICA_WORKER_SERVICE_ACCOUNT
-              value: {{ include "multica-runtime-controller.fullname" . }}-worker
-            - name: MULTICA_WORKSPACE_PVC_NAME
-              value: {{ include "multica-runtime-controller.workspaceClaimName" . | quote }}
-            - name: MULTICA_WORKER_EXTRA_VOLUMES
-              value: {{ .Values.runtime.extraVolumes | toJson | quote }}
-            - name: MULTICA_WORKER_EXTRA_VOLUME_MOUNTS
-              value: {{ .Values.runtime.extraVolumeMounts | toJson | quote }}
             - name: MULTICA_RUNTIME_CAPACITY
               value: {{ .Values.runtime.capacity | quote }}
             - name: MULTICA_POLL_INTERVAL
               value: {{ .Values.runtime.pollInterval | quote }}
             - name: MULTICA_HEARTBEAT_INTERVAL
               value: {{ .Values.runtime.heartbeatInterval | quote }}
-            - name: MULTICA_TASK_DEADLINE
-              value: {{ .Values.runtime.taskDeadline | quote }}
-            - name: MULTICA_WORKER_CPU_REQUEST
-              value: {{ .Values.runtime.workerResources.requests.cpu | quote }}
-            - name: MULTICA_WORKER_CPU_LIMIT
-              value: {{ .Values.runtime.workerResources.limits.cpu | quote }}
-            - name: MULTICA_WORKER_MEMORY_REQUEST
-              value: {{ .Values.runtime.workerResources.requests.memory | quote }}
-            - name: MULTICA_WORKER_MEMORY_LIMIT
-              value: {{ .Values.runtime.workerResources.limits.memory | quote }}
             - name: POD_NAMESPACE
               valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+                fieldRef: {fieldPath: metadata.namespace}
             - name: POD_NAME
               valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-          livenessProbe:
-            exec:
-              command: ["/usr/local/bin/multica", "daemon", "status", "--output", "json"]
-            initialDelaySeconds: 30
-            timeoutSeconds: 5
+                fieldRef: {fieldPath: metadata.name}
+            - name: POD_NODE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: spec.nodeName}
+            - name: POD_UID
+              valueFrom:
+                fieldRef: {fieldPath: metadata.uid}
+          ports:
+            - {name: daemon-proxy, containerPort: 8080}
           readinessProbe:
-            exec:
-              command: ["/usr/local/bin/multica", "daemon", "status", "--output", "json"]
+            httpGet: {path: /healthz, port: daemon-proxy}
             initialDelaySeconds: 5
             timeoutSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: daemon-proxy}
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
           resources:
             {{- toYaml .Values.controller.resources | nindent 12 }}
           securityContext:
-            {{- toYaml .Values.controller.securityContext | nindent 12 }}
-            capabilities:
-              drop: ["ALL"]
+            {{- include "multica-runtime-controller.securityContext" . | nindent 12 }}
           volumeMounts:
-            - name: controller-token
-              mountPath: /var/run/multica/controller
+            - {name: core, mountPath: /opt/multica/core, readOnly: true}
+            - name: tools
+              mountPath: /opt/multica/environment
+              subPath: generations/{{ include "multica-runtime-controller.environmentID" . }}
               readOnly: true
-            - name: tmp
-              mountPath: /tmp
-            - name: workspace
-              mountPath: /workspace
-            - name: agent-home
-              mountPath: /home/multica/agents
-              subPath: home
-            - name: workspace
-              mountPath: /home/multica/agents/.pi
-              subPath: .pi
-            - name: workspace
-              mountPath: /home/multica/agents/.multica/pi-sessions
-              subPath: .multica/pi-sessions
-            {{- with .Values.runtime.extraVolumeMounts }}
+            - {name: environment-config, mountPath: /etc/multica/environment/input.json, subPath: input.json, readOnly: true}
+            - {name: worker-config, mountPath: /etc/multica/environment/worker.json, subPath: worker.json, readOnly: true}
+            - {name: kube-api-access, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true}
+            - {name: controller-token, mountPath: /run/multica/controller, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+            - {name: run, mountPath: /run/multica}
+            - {name: workspace, mountPath: /workspace}
+            - {name: agent-home, mountPath: /home/multica/agents}
+            - {name: workspace, mountPath: /home/multica/agents/.multica/pi-sessions, subPath: .multica-runtime/sessions}
+            {{- with .Values.operator.configMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-        - name: daemon-proxy
-          image: {{ .Values.controller.image.reference | quote }}
-          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
-          args: ["daemon-proxy"]
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          ports:
-            - name: daemon-proxy
-              containerPort: 19515
-              protocol: TCP
-          resources:
-            {{- toYaml .Values.controller.resources | nindent 12 }}
-          securityContext:
-            {{- toYaml .Values.controller.securityContext | nindent 12 }}
-            capabilities:
-              drop: ["ALL"]
       volumes:
+        - {name: core, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+        - {name: bootstrap-tmp, emptyDir: {}}
+        - {name: agent-home, emptyDir: {}}
+        - {name: run, emptyDir: {}}
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: {{ include "multica-runtime-controller.workspaceClaimName" . }}
+        - name: tools
+          persistentVolumeClaim:
+            claimName: {{ include "multica-runtime-controller.toolsClaimName" . }}
+        - name: worker-config
+          secret:
+            secretName: {{ include "multica-runtime-controller.fullname" . }}-worker-config
+            defaultMode: 0440
+        - name: kube-api-access
+          projected:
+            defaultMode: 0440
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - {key: ca.crt, path: ca.crt}
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef: {apiVersion: v1, fieldPath: metadata.namespace}
         - name: controller-token
           secret:
             secretName: {{ .Values.multica.controllerTokenSecret.name }}
@@ -255,23 +286,23 @@ spec:
             items:
               - key: {{ .Values.multica.controllerTokenSecret.key }}
                 path: token
-        - name: tmp
-          emptyDir: {}
-        - name: workspace
-          persistentVolumeClaim:
-            claimName: {{ include "multica-runtime-controller.workspaceClaimName" . }}
-        - name: agent-home
-          emptyDir: {}
-        {{- if .Values.runtime.pi.configMapName }}
-        - name: pi-config
+        - name: environment-config
           configMap:
-            name: {{ .Values.runtime.pi.configMapName | quote }}
-            defaultMode: 0440
-            {{- with .Values.runtime.pi.configMapItems }}
+            name: {{ include "multica-runtime-controller.fullname" . }}-environment
             items:
-              {{- toYaml . | nindent 14 }}
+              - {key: input.json, path: input.json}
+        - name: bootstrap-script
+          configMap:
+            {{- if eq .Values.environment.bootstrap.source "configMap" }}
+            name: {{ .Values.environment.bootstrap.configMap.name | quote }}
+            items:
+              - key: {{ .Values.environment.bootstrap.configMap.key | quote }}
+                path: bootstrap.sh
+            {{- else }}
+            name: {{ include "multica-runtime-controller.fullname" . }}-environment
+            items:
+              - {key: bootstrap.sh, path: bootstrap.sh}
             {{- end }}
-        {{- end }}
-        {{- with .Values.runtime.extraVolumes }}
+        {{- with .Values.operator.configVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

@@ -1,0 +1,8 @@
+environment:
+  bootstrap:
+    source: configMap
+    revision: external-1
+    configMap:
+      name: operator-bootstrap
+      key: bootstrap.sh
+      sha256: 7e7ca926206e210093f09d3f34751fd0167d7fde4b831d3b0c5c3b032ae330f9

@@ -1,0 +1,4 @@
+# Render-only core fixture; never deploy this synthetic digest.
+runtime:
+  image:
+    reference: ghcr.io/korioinc/multica-runtime-controller:ci@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

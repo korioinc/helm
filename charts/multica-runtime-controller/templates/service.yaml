@@ -12,6 +12,6 @@ spec:
     app.kubernetes.io/component: controller
   ports:
     - name: daemon-proxy
-      port: 19515
+      port: 8080
       targetPort: daemon-proxy
       protocol: TCP
