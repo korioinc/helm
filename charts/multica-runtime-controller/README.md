@@ -10,15 +10,16 @@ workspace storage binding, never the controller's full PVC root.
 
 Use Kubernetes 1.36+, Helm 3 or 4, Linux amd64 or arm64, and storage supporting
 POSIX locks, atomic rename, fsync and executable files. Supply an existing
-controller token Secret, two different PVCs or provisioners, and a digest-pinned
-core artifact implementing contract version 1. Old combined runtime images are
-incompatible. `runtime.image.reference` is deliberately empty until the first
-compatible core release is selected; a release cannot publish that empty default.
+controller token Secret and two different PVCs or provisioners. Chart 0.2.0 ships
+with runtime core 0.3.38 implementing contract version 1, pinned to OCI index digest
+`sha256:779d5dc58d1602f5989feed279e7900f306a89ff25904c5e6ed43b49de7049f9`
+for both supported architectures. Old combined runtime images are incompatible.
+To select another compatible core release, optionally override
+`runtime.image.reference` with its digest-pinned reference.
 
 ```sh
 helm upgrade --install multica-runtime-controller ./charts/multica-runtime-controller \
   --namespace multica --create-namespace \
-  --set-string runtime.image.reference="$CORE_IMAGE_DIGEST" \
   --set-string multica.baseURL=https://multica.example.com \
   --set-string multica.controllerTokenSecret.name=multica-controller-token \
   --set-string environment.platform=linux/arm64 \
@@ -74,7 +75,6 @@ All example scripts are complete and independent:
 ```sh
 # --set-file preserves script bytes, including the final newline.
 helm template multica-runtime-controller charts/multica-runtime-controller \
-  --set-string runtime.image.reference="$CORE_IMAGE_DIGEST" \
   --set-string environment.bootstrap.source=inline \
   --set-string environment.bootstrap.revision=go-rust-1 \
   --set-file environment.bootstrap.script=charts/multica-runtime-controller/files/environments/go-rust.sh
@@ -83,7 +83,6 @@ helm template multica-runtime-controller charts/multica-runtime-controller \
 docker build -f charts/multica-runtime-controller/files/environments/Dockerfile.php-python \
   -t operator-php-python:local charts/multica-runtime-controller/files/environments
 helm template multica-runtime-controller charts/multica-runtime-controller \
-  --set-string runtime.image.reference="$CORE_IMAGE_DIGEST" \
   --set-string environment.image.reference="$OPERATOR_IMAGE_DIGEST" \
   --set-string environment.bootstrap.source=inline \
   --set-string environment.bootstrap.revision=php-python-1 \
@@ -186,8 +185,8 @@ The hourly/manual updater resolves stable GHCR tags. Before updating, it inspect
 both native core artifacts without running their contents: contract version,
 platform, release label and executable file hashes must agree. It changes only
 `runtime.image.reference`, chart/app versions and core annotations. Environment
-image, bootstrap and operator input remain untouched. The first core pin fills
-unpublished chart 0.2.0; subsequent updates bump the chart patch version.
+image, bootstrap and operator input remain untouched. The first core pin populated
+chart 0.2.0; subsequent updates bump the chart patch version.
 
 The updater commits directly to main and dispatches `release.yml`; it does not
 create a PR. Release revalidates the actual core pin before publishing a GitHub

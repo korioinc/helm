@@ -7,7 +7,7 @@ runtime:
   name: runtime-controller
   image:
     # Required: a digest of the new contract-version-1 core artifact.
-    reference: ""
+    reference: "ghcr.io/korioinc/multica-runtime-controller:0.3.38@sha256:779d5dc58d1602f5989feed279e7900f306a89ff25904c5e6ed43b49de7049f9"
     pullPolicy: IfNotPresent
   capacity: 20
   pollInterval: 10s

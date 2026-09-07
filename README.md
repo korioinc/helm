@@ -45,13 +45,13 @@ Install or upgrade the runtime controller:
 helm upgrade --install multica-runtime-controller \
   korioinc/multica-runtime-controller \
   --namespace multica \
-  --set-string runtime.image.reference="$CORE_IMAGE_DIGEST" \
   --set multica.baseURL=https://multica.example.com
 ```
 
-The 0.2 chart requires a contract-version-1 core artifact and separate tools/workspace
-PVCs. Old combined images and old values are incompatible. See the chart README
-for the selected environment image, bootstrap, RWO scheduling and credential inputs.
+Chart 0.2.0 includes a digest-pinned runtime core 0.3.38 and requires separate
+tools/workspace PVCs. A custom compatible core pin is optional. Old combined images
+and old values are incompatible. See the chart README for the environment image,
+bootstrap, RWO scheduling and credential inputs.
 
 ## Configuration
 
