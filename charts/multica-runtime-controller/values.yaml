@@ -7,19 +7,21 @@ runtime:
   name: runtime-controller
   image:
     # Required: a digest of the new contract-version-1 core artifact.
-    reference: "ghcr.io/korioinc/multica-runtime-controller:0.3.38@sha256:779d5dc58d1602f5989feed279e7900f306a89ff25904c5e6ed43b49de7049f9"
+    reference: "ghcr.io/korioinc/multica-runtime-controller:0.3.39@sha256:c2516c0516973eecd0dba56c5e1703b593aa1efdb5cdad503e19d376e1030d96"
     pullPolicy: IfNotPresent
   capacity: 20
   pollInterval: 10s
   heartbeatInterval: 15s
 environment:
   image:
-    reference: docker.io/library/buildpack-deps:bookworm-scm@sha256:4274ea4975976f86239384ac206f98af5f0978fd8f054886eec1371fc7664025
+    # Required: select your execution image by digest.
+    reference: ""
     pullPolicy: IfNotPresent
   platform: linux/amd64
-  providers: [pi, codex, copilot, antigravity]
+  # Required: explicitly enable at least one installed provider.
+  providers: []
   bootstrap:
-    source: bundled
+    source: inline
     revision: default-1
     script: ""
     configMap: {name: "", key: "", sha256: ""}
@@ -36,7 +38,9 @@ operator:
   # Controller/provider/task configuration; never supplied to bootstrap.
   envFrom: []
   env: []
+  # ConfigMap/Secret inputs are mounted read-only only in layout init containers.
   configVolumes: []
+  # mountPath is the writable private HOME destination; readOnly applies to input.
   configMounts: []
 controller:
   podAnnotations: {}

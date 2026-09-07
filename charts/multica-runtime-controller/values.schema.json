@@ -187,71 +187,89 @@
             "timeout",
             "resources"
           ],
-          "oneOf": [
+          "allOf": [
             {
-              "properties": {
-                "source": {
-                  "const": "bundled"
-                },
-                "script": {
-                  "const": ""
-                },
-                "configMap": {
-                  "properties": {
-                    "name": {
-                      "const": ""
-                    },
-                    "key": {
-                      "const": ""
-                    },
-                    "sha256": {
-                      "const": ""
+              "if": {
+                "properties": {
+                  "source": {
+                    "const": "bundled"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "script": {
+                    "const": ""
+                  },
+                  "configMap": {
+                    "properties": {
+                      "name": {
+                        "const": ""
+                      },
+                      "key": {
+                        "const": ""
+                      },
+                      "sha256": {
+                        "const": ""
+                      }
                     }
                   }
                 }
               }
             },
             {
-              "properties": {
-                "source": {
-                  "const": "inline"
-                },
-                "script": {
-                  "minLength": 1
-                },
-                "configMap": {
-                  "properties": {
-                    "name": {
-                      "const": ""
-                    },
-                    "key": {
-                      "const": ""
-                    },
-                    "sha256": {
-                      "const": ""
+              "if": {
+                "properties": {
+                  "source": {
+                    "const": "inline"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "script": {
+                    "minLength": 1
+                  },
+                  "configMap": {
+                    "properties": {
+                      "name": {
+                        "const": ""
+                      },
+                      "key": {
+                        "const": ""
+                      },
+                      "sha256": {
+                        "const": ""
+                      }
                     }
                   }
                 }
               }
             },
             {
-              "properties": {
-                "source": {
-                  "const": "configMap"
-                },
-                "script": {
-                  "const": ""
-                },
-                "configMap": {
-                  "properties": {
-                    "name": {
-                      "minLength": 1
-                    },
-                    "key": {
-                      "minLength": 1
-                    },
-                    "sha256": {
-                      "pattern": "^[a-f0-9]{64}$"
+              "if": {
+                "properties": {
+                  "source": {
+                    "const": "configMap"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "script": {
+                    "const": ""
+                  },
+                  "configMap": {
+                    "properties": {
+                      "name": {
+                        "minLength": 1
+                      },
+                      "key": {
+                        "minLength": 1
+                      },
+                      "sha256": {
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
                     }
                   }
                 }
@@ -1016,22 +1034,26 @@
         },
         "mountPath": {
           "type": "string",
-          "pattern": "^/home/multica/agents/[^/].*"
+          "pattern": "^/home/multica/agents/[^/].*",
+          "description": "Canonical file or directory destination beneath /home/multica/agents. Runtime daemon state, assigned Codex skills and Pi sessions are protected, including within copied directories."
         },
         "subPath": {
           "type": "string",
           "minLength": 1,
-          "pattern": "^[^/].*"
+          "pattern": "^[^/].*",
+          "description": "Optional source file or directory within the selected configVolume."
         },
         "readOnly": {
-          "const": true
+          "const": true,
+          "description": "The input volume is always read-only and mounted only in layout init. The destination copy is writable by the runtime user."
         }
       },
       "required": [
         "name",
         "mountPath",
         "readOnly"
-      ]
+      ],
+      "description": "Copy one read-only operator input into private writable native HOME during layout initialization. Existing files are preserved; a new Pod receives fresh input copies."
     }
   }
 }

@@ -9,17 +9,18 @@ scratch=$(mktemp -d "${TMPDIR:-/tmp}/multica-chart-check.XXXXXXXX")
 trap 'rm -rf "$scratch"' EXIT
 python3 -m unittest -v scripts.test_update_chart
 for script in "$chart"/files/environments/*.sh; do bash -n "$script"; done
+release_core_reference=
 if [ "$mode" = --release ]; then
-  # A release must contain a usable default, verified from actual image bytes.
-  python3 scripts/update_chart.py --verify-current
+  # Verify the actual core; execution environments are explicit render fixtures.
+  core_verification=$(python3 scripts/update_chart.py --verify-current)
+  printf '%s\n' "$core_verification"
+  release_core_reference=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["reference"])' <<<"$core_verification")
 fi
 for profile in "$chart"/ci/values-*.yaml; do
   name=$(basename "$profile" .yaml)
-  values=(-f "$chart/values.yaml")
-  if [ "$mode" = --ci ]; then
-    values+=(-f "$chart/ci/values-default.yaml" -f "$profile")
-  elif [ "$name" != values-default ]; then
-    values+=(-f "$profile")
+  values=(-f "$chart/values.yaml" -f "$chart/ci/values-default.yaml" -f "$profile")
+  if [ "$mode" = --release ]; then
+    values+=(--set-string "runtime.image.reference=$release_core_reference")
   fi
   helm lint "$chart" "${values[@]}"
   helm template multica-runtime-controller "$chart" --namespace multica \
