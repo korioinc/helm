@@ -8,6 +8,10 @@ workspace storage binding, never the controller's full PVC root.
 
 ## Configure an execution environment
 
+Use Kubernetes 1.36+, Helm 3 or 4, Linux amd64 or arm64, and storage supporting
+POSIX locks, atomic rename, fsync and executable files. Supply an existing
+controller token Secret and two different PVCs or provisioners.
+
 Chart 0.3.0 leaves the environment image, provider list and bootstrap script
 unconfigured. Rendering without those inputs fails before any Pod is created.
 No language or provider installation is selected automatically. The chart requires
@@ -215,7 +219,8 @@ Both individual files and directories such as `.codex`, `.pi`, `.pi/agent` and
 `.multica` are supported. This lets providers change settings, refresh an
 `auth.json`, create plugins and customize their native directories. Files are
 private to UID 65532 (mode 0600, with the source owner executable bit preserved);
-directories use mode 0700. Copies create missing files only, so existing files
+directory access permissions are 0700 (volume setgid may be inherited). Copies
+create missing files only, so existing files
 survive an init retry. Input configuration is copied before `homeSeed`, so it
 wins over bootstrap defaults. Copying is per file, not an atomic directory swap.
 
@@ -232,7 +237,7 @@ checksum computed from native provider configuration. Configuration files stay
 in each Pod's writable HOME for that Pod's lifetime. ConfigMap and Secret updates
 are picked up by a new Pod; they do not overwrite running provider changes.
 Pod replacement resets HOME to current inputs and defaults; local settings and
-credential refreshes are not written back to Kubernetes Secrets. The chart always
+credential refreshes are not written back to the source ConfigMaps or Secrets. The chart always
 controls `multica.io/environment-id`, `checksum/worker-config` and `checksum/config`;
 custom annotations cannot override them.
 
