@@ -325,10 +325,17 @@
       "properties": {
         "resources": {
           "$ref": "#/$defs/resources"
+        },
+        "podAnnotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "required": [
-        "resources"
+        "resources",
+        "podAnnotations"
       ]
     },
     "worker": {

@@ -10,7 +10,7 @@ workspace storage binding, never the controller's full PVC root.
 
 Use Kubernetes 1.36+, Helm 3 or 4, Linux amd64 or arm64, and storage supporting
 POSIX locks, atomic rename, fsync and executable files. Supply an existing
-controller token Secret and two different PVCs or provisioners. Chart 0.2.0 ships
+controller token Secret and two different PVCs or provisioners. Chart 0.2.1 ships
 with runtime core 0.3.38 implementing contract version 1, pinned to OCI index digest
 `sha256:779d5dc58d1602f5989feed279e7900f306a89ff25904c5e6ed43b49de7049f9`
 for both supported architectures. Old combined runtime images are incompatible.
@@ -152,6 +152,12 @@ Kubernetes `$(VAR)` expansion is rejected. Use `valueFrom.secretKeyRef` or
 including individual `.codex/auth.json` or `.pi/agent/auth.json` files. Runtime,
 workspace authority and selected session paths cannot be replaced. PVC config
 mounts are unsupported. See [the RWX example](ci/values-rwx.yaml).
+
+Use `controller.podAnnotations` for controller rollout annotations, such as a
+checksum computed from native provider configuration. Configuration files stay
+read-only beneath HOME while HOME itself remains writable. The chart always
+controls `multica.io/environment-id`, `checksum/worker-config` and `checksum/config`;
+custom annotations cannot override them.
 
 Provider credentials retain their remote authorization scope. Per-task local
 storage isolation does not narrow a token's GitHub permissions. Provider code can
