@@ -2,7 +2,7 @@ apiVersion: v2
 name: multica-runtime-controller
 description: Multica runtime core with operator-selected immutable environments
 type: application
-version: 0.2.0
+version: 0.2.1
 appVersion: "0.3.38"
 home: https://github.com/korioinc/multica-runtime-controller
 sources:
@@ -20,7 +20,7 @@ annotations:
   artifacthub.io/category: ai-machine-learning
   artifacthub.io/changes: |
     - kind: changed
-      description: Update runtime core artifact to 0.3.38
+      description: Allow controller Pod annotations for configuration rollouts
   artifacthub.io/images: |
     - name: multica-runtime-core
       image: ghcr.io/korioinc/multica-runtime-controller:0.3.38@sha256:779d5dc58d1602f5989feed279e7900f306a89ff25904c5e6ed43b49de7049f9

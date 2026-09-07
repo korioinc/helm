@@ -17,9 +17,8 @@ spec:
   template:
     metadata:
       annotations:
-        multica.io/environment-id: {{ include "multica-runtime-controller.environmentID" . | quote }}
-        checksum/worker-config: {{ include (print $.Template.BasePath "/worker-config.yaml") . | sha256sum }}
-        checksum/config: {{ include (print $.Template.BasePath "/environment-config.yaml") . | sha256sum }}
+        {{- $fixed := dict "multica.io/environment-id" (include "multica-runtime-controller.environmentID" .) "checksum/worker-config" (include (print $.Template.BasePath "/worker-config.yaml") . | sha256sum) "checksum/config" (include (print $.Template.BasePath "/environment-config.yaml") . | sha256sum) }}
+        {{- merge $fixed .Values.controller.podAnnotations | toYaml | nindent 8 }}
       labels:
         app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
