@@ -1,0 +1,8 @@
+environment:
+  storage:
+    accessMode: ReadWriteOnce
+workspace:
+  storage:
+    accessMode: ReadWriteOnce
+scheduling:
+  singleNodeName: multica-fixed-node

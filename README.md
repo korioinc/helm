@@ -48,6 +48,11 @@ helm upgrade --install multica-runtime-controller \
   --set multica.baseURL=https://multica.example.com
 ```
 
+Chart 0.2.0 includes a digest-pinned runtime core 0.3.38 and requires separate
+tools/workspace PVCs. A custom compatible core pin is optional. Old combined images
+and old values are incompatible. See the chart README for the environment image,
+bootstrap, RWO scheduling and credential inputs.
+
 ## Configuration
 
 See the chart [README](charts/multica-runtime-controller/README.md),

@@ -1,0 +1,23 @@
+environment:
+  platform: linux/arm64
+  storage:
+    accessMode: ReadWriteMany
+workspace:
+  storage:
+    accessMode: ReadWriteMany
+operator:
+  envFrom:
+    - secretRef: {name: provider-env}
+  env:
+    - name: GH_TOKEN
+      valueFrom:
+        secretKeyRef: {name: provider-env, key: GITHUB_PAT_TOKEN}
+  configVolumes:
+    - name: codex-config
+      projected:
+        sources:
+          - configMap: {name: codex-config}
+          - secret: {name: codex-auth}
+  configMounts:
+    - {name: codex-config, mountPath: /home/multica/agents/.codex/config.toml, subPath: config.toml, readOnly: true}
+    - {name: codex-config, mountPath: /home/multica/agents/.codex/auth.json, subPath: auth.json, readOnly: true}

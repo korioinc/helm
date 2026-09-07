@@ -1,210 +1,1030 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["multica", "runtime", "controller", "workspace"],
-  "$defs": {
-    "image": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reference", "pullPolicy"],
-      "properties": {
-        "reference": {"type": "string", "pattern": "@sha256:[a-fA-F0-9]{64}$"},
-        "pullPolicy": {"type": "string", "enum": ["Always", "IfNotPresent", "Never"]}
-      }
+  "properties": {
+    "replicaCount": {
+      "const": 1
     },
-    "resources": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["requests", "limits"],
-      "properties": {
-        "requests": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["cpu", "memory"],
-          "properties": {
-            "cpu": {"type": "string", "minLength": 1},
-            "memory": {"type": "string", "minLength": 1}
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
           }
         },
-        "limits": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["cpu", "memory"],
-          "properties": {
-            "cpu": {"type": "string", "minLength": 1},
-            "memory": {"type": "string", "minLength": 1}
-          }
-        }
+        "required": [
+          "name"
+        ]
       }
     },
-    "envFromRef": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name"],
-      "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "optional": {"type": "boolean"}
-      }
-    }
-  },
-  "properties": {
-    "replicaCount": {"const": 1},
     "multica": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["baseURL", "controllerTokenSecret"],
       "properties": {
-        "baseURL": {"type": "string", "pattern": "^https?://"},
+        "baseURL": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
         "controllerTokenSecret": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "key"],
           "properties": {
-            "name": {"type": "string", "minLength": 1},
-            "key": {"type": "string", "minLength": 1}
-          }
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "key"
+          ]
         }
-      }
+      },
+      "required": [
+        "baseURL",
+        "controllerTokenSecret"
+      ]
     },
     "runtime": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name", "image", "capacity", "pollInterval", "heartbeatInterval",
-        "taskDeadline", "pi", "workerResources", "extraEnvFrom", "extraEnv", "extraVolumes", "extraVolumeMounts"
-      ],
       "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "image": {"$ref": "#/$defs/image"},
-        "capacity": {"type": "integer", "minimum": 1, "maximum": 32},
-        "pollInterval": {"type": "string", "minLength": 2},
-        "heartbeatInterval": {"type": "string", "minLength": 2},
-        "taskDeadline": {"type": "string", "minLength": 2},
-        "pi": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "image": {
+          "$ref": "#/$defs/image"
+        },
+        "capacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "pollInterval": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(ms|s|m|h)$"
+        },
+        "heartbeatInterval": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(ms|s|m|h)$"
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "capacity",
+        "pollInterval",
+        "heartbeatInterval"
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "$ref": "#/$defs/image"
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "linux/amd64",
+            "linux/arm64"
+          ]
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pi",
+              "codex",
+              "copilot",
+              "antigravity"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "bootstrap": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["packages", "configMapName", "configMapItems"],
           "properties": {
-            "packages": {
-              "type": "array",
-              "uniqueItems": true,
-              "items": {
-                "type": "string",
-                "minLength": 1,
-                "pattern": "^(npm:(?:@[A-Za-z0-9._-]+/[A-Za-z0-9._-]+|[A-Za-z0-9._-]+)(?:@[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)?|(?:git:|https?://|ssh://|git://).+@(?:refs/tags/[^\\s]+|v?[0-9]+(?:\\.[0-9]+){0,2}(?:[._-][0-9A-Za-z][0-9A-Za-z._-]*)?|[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?))$"
+            "source": {
+              "type": "string",
+              "enum": [
+                "bundled",
+                "inline",
+                "configMap"
+              ]
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            },
+            "script": {
+              "type": "string"
+            },
+            "configMap": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "key",
+                "sha256"
+              ]
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
               }
             },
-            "configMapName": {"type": "string", "maxLength": 253},
-            "configMapItems": {
+            "secretEnvFrom": {
               "type": "array",
               "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["key", "path"],
-                "properties": {
-                  "key": {"type": "string", "minLength": 1},
-                  "path": {"type": "string", "minLength": 1}
+                "$ref": "#/$defs/secretEnvFrom"
+              }
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resources": {
+              "$ref": "#/$defs/resources"
+            }
+          },
+          "required": [
+            "source",
+            "revision",
+            "script",
+            "configMap",
+            "env",
+            "secretEnvFrom",
+            "timeout",
+            "resources"
+          ],
+          "oneOf": [
+            {
+              "properties": {
+                "source": {
+                  "const": "bundled"
+                },
+                "script": {
+                  "const": ""
+                },
+                "configMap": {
+                  "properties": {
+                    "name": {
+                      "const": ""
+                    },
+                    "key": {
+                      "const": ""
+                    },
+                    "sha256": {
+                      "const": ""
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "source": {
+                  "const": "inline"
+                },
+                "script": {
+                  "minLength": 1
+                },
+                "configMap": {
+                  "properties": {
+                    "name": {
+                      "const": ""
+                    },
+                    "key": {
+                      "const": ""
+                    },
+                    "sha256": {
+                      "const": ""
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "source": {
+                  "const": "configMap"
+                },
+                "script": {
+                  "const": ""
+                },
+                "configMap": {
+                  "properties": {
+                    "name": {
+                      "minLength": 1
+                    },
+                    "key": {
+                      "minLength": 1
+                    },
+                    "sha256": {
+                      "pattern": "^[a-f0-9]{64}$"
+                    }
+                  }
                 }
               }
             }
+          ]
+        },
+        "storage": {
+          "$ref": "#/$defs/storage"
+        }
+      },
+      "required": [
+        "image",
+        "platform",
+        "providers",
+        "bootstrap",
+        "storage"
+      ]
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "storage": {
+          "$ref": "#/$defs/storage"
+        }
+      },
+      "required": [
+        "storage"
+      ]
+    },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "envFrom": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/envFrom"
           }
         },
-        "workerResources": {"$ref": "#/$defs/resources"},
-        "extraEnvFrom": {
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/envVar"
+          }
+        },
+        "configVolumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/configVolume"
+          }
+        },
+        "configMounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/configMount"
+          }
+        }
+      },
+      "required": [
+        "envFrom",
+        "env",
+        "configVolumes",
+        "configMounts"
+      ]
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resources": {
+          "$ref": "#/$defs/resources"
+        }
+      },
+      "required": [
+        "resources"
+      ]
+    },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resources": {
+          "$ref": "#/$defs/resources"
+        },
+        "taskDeadline": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terminationGraceSeconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "resources",
+        "taskDeadline",
+        "terminationGraceSeconds"
+      ]
+    },
+    "scheduling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodeSelector": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "singleNodeName": {
+          "type": "string"
+        },
+        "tolerations": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "prefix": {"type": "string"},
-              "configMapRef": {"$ref": "#/$defs/envFromRef"},
-              "secretRef": {"$ref": "#/$defs/envFromRef"}
+              "key": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "Exists",
+                  "Equal"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "effect": {
+                "type": "string",
+                "enum": [
+                  "NoSchedule",
+                  "PreferNoSchedule",
+                  "NoExecute"
+                ]
+              },
+              "tolerationSeconds": {
+                "type": "integer",
+                "minimum": 0
+              }
             },
-            "oneOf": [
-              {"required": ["configMapRef"]},
-              {"required": ["secretRef"]}
-            ]
-          }
-        },
-        "extraEnv": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name"],
-            "properties": {
-              "name": {"type": "string", "minLength": 1}
-            },
-            "additionalProperties": true
-          }
-        },
-        "extraVolumes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name"],
-            "properties": {"name": {"type": "string", "minLength": 1}},
-            "additionalProperties": true
-          }
-        },
-        "extraVolumeMounts": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name", "mountPath", "readOnly"],
-            "properties": {
-              "name": {"type": "string", "minLength": 1},
-              "mountPath": {"type": "string", "pattern": "^/"},
-              "subPath": {"type": "string"},
-              "readOnly": {"const": true}
-            },
-            "additionalProperties": true
+            "required": []
           }
         }
-      }
-    },
-    "controller": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["image", "resources", "securityContext"],
-      "properties": {
-        "image": {"$ref": "#/$defs/image"},
-        "resources": {"type": "object"},
-        "securityContext": {"type": "object"}
-      }
-    },
-    "workspace": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["claimName", "storageClassName", "accessModes", "size"],
-      "properties": {
-        "claimName": {"type": "string", "minLength": 1},
-        "storageClassName": {"type": "string"},
-        "accessModes": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {"type": "string", "enum": ["ReadWriteOnce", "ReadWriteMany"]}
-        },
-        "size": {"type": "string", "minLength": 1}
-      }
+      },
+      "required": [
+        "nodeSelector",
+        "singleNodeName",
+        "tolerations"
+      ]
     },
     "podDisruptionBudget": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "maxUnavailable"],
       "properties": {
-        "enabled": {"type": "boolean"},
-        "maxUnavailable": {"type": ["integer", "string"]}
-      }
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxUnavailable": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      },
+      "required": [
+        "enabled",
+        "maxUnavailable"
+      ]
     },
     "networkPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled"],
       "properties": {
-        "enabled": {"type": "boolean"}
-      }
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    }
+  },
+  "required": [
+    "replicaCount",
+    "imagePullSecrets",
+    "multica",
+    "runtime",
+    "environment",
+    "workspace",
+    "operator",
+    "controller",
+    "worker",
+    "scheduling",
+    "podDisruptionBudget",
+    "networkPolicy"
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "type": "string",
+          "pattern": "^[^\\s@]+@sha256:[a-f0-9]{64}$"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
+      },
+      "required": [
+        "reference",
+        "pullPolicy"
+      ]
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "$ref": "#/$defs/quantities"
+        },
+        "limits": {
+          "$ref": "#/$defs/quantities"
+        }
+      },
+      "required": []
+    },
+    "quantities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memory": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": []
+    },
+    "envFrom": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "secretRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "configMapRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      "required": [],
+      "oneOf": [
+        {
+          "required": [
+            "secretRef"
+          ]
+        },
+        {
+          "required": [
+            "configMapRef"
+          ]
+        }
+      ]
+    },
+    "secretEnvFrom": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "secretRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      "required": [
+        "secretRef"
+      ]
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingClaim": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "accessMode": {
+          "type": "string",
+          "enum": [
+            "ReadWriteOnce",
+            "ReadWriteMany"
+          ]
+        }
+      },
+      "required": [
+        "existingClaim",
+        "size",
+        "storageClass",
+        "accessMode"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "existingClaim": {
+              "minLength": 1
+            },
+            "size": {
+              "const": ""
+            },
+            "storageClass": {
+              "const": ""
+            }
+          }
+        },
+        {
+          "properties": {
+            "existingClaim": {
+              "const": ""
+            },
+            "size": {
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "envVar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "value": {
+          "type": "string"
+        },
+        "valueFrom": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "secretKeyRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253,
+                  "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "optional": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "key"
+              ]
+            },
+            "configMapKeyRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253,
+                  "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "optional": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "key"
+              ]
+            }
+          },
+          "required": [],
+          "oneOf": [
+            {
+              "required": [
+                "secretKeyRef"
+              ]
+            },
+            {
+              "required": [
+                "configMapKeyRef"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "required": [
+            "valueFrom"
+          ]
+        }
+      ]
+    },
+    "configVolume": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "secret": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "secretName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "type": "boolean"
+            },
+            "defaultMode": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 511
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^/].*"
+                  },
+                  "mode": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 511
+                  }
+                },
+                "required": [
+                  "key",
+                  "path"
+                ]
+              }
+            }
+          },
+          "required": [
+            "secretName"
+          ]
+        },
+        "configMap": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "type": "boolean"
+            },
+            "defaultMode": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 511
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^/].*"
+                  },
+                  "mode": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 511
+                  }
+                },
+                "required": [
+                  "key",
+                  "path"
+                ]
+              }
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "projected": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "defaultMode": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 511
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "secret": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 253,
+                        "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+                      },
+                      "optional": {
+                        "type": "boolean"
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "key": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "path": {
+                              "type": "string",
+                              "minLength": 1,
+                              "pattern": "^[^/].*"
+                            },
+                            "mode": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 511
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "path"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  },
+                  "configMap": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 253,
+                        "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+                      },
+                      "optional": {
+                        "type": "boolean"
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "key": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "path": {
+                              "type": "string",
+                              "minLength": 1,
+                              "pattern": "^[^/].*"
+                            },
+                            "mode": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 511
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "path"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  }
+                },
+                "required": [],
+                "oneOf": [
+                  {
+                    "required": [
+                      "secret"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "configMap"
+                    ]
+                  }
+                ]
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "sources"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "secret"
+          ]
+        },
+        {
+          "required": [
+            "configMap"
+          ]
+        },
+        {
+          "required": [
+            "projected"
+          ]
+        }
+      ]
+    },
+    "configMount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mountPath": {
+          "type": "string",
+          "pattern": "^/home/multica/agents/[^/].*"
+        },
+        "subPath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/].*"
+        },
+        "readOnly": {
+          "const": true
+        }
+      },
+      "required": [
+        "name",
+        "mountPath",
+        "readOnly"
+      ]
     }
   }
 }

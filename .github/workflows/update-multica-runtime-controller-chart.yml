@@ -41,15 +41,7 @@ jobs:
           } >>"$GITHUB_OUTPUT"
       - name: Verify updated chart
         if: steps.update.outputs.changed == 'true'
-        run: |
-          set -euo pipefail
-          helm lint charts/multica-runtime-controller
-          helm template multica-runtime-controller charts/multica-runtime-controller \
-            --namespace multica >/tmp/multica-runtime-controller.yaml
-          go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0 \
-            -strict -summary -kubernetes-version 1.36.0 \
-            /tmp/multica-runtime-controller.yaml
-          helm package charts/multica-runtime-controller --destination /tmp
+        run: scripts/verify-chart.sh --release
       - name: Commit update
         if: steps.update.outputs.changed == 'true'
         env:

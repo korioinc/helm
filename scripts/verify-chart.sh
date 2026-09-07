@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repository=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$repository"
+mode=${1:---ci}
+case "$mode" in --ci|--release) ;; *) echo 'usage: scripts/verify-chart.sh [--ci|--release]' >&2; exit 2 ;; esac
+chart=charts/multica-runtime-controller
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/multica-chart-check.XXXXXXXX")
+trap 'rm -rf "$scratch"' EXIT
+python3 -m unittest -v scripts.test_update_chart
+for script in "$chart"/files/environments/*.sh; do bash -n "$script"; done
+if [ "$mode" = --release ]; then
+  # A release must contain a usable default, verified from actual image bytes.
+  python3 scripts/update_chart.py --verify-current
+fi
+for profile in "$chart"/ci/values-*.yaml; do
+  name=$(basename "$profile" .yaml)
+  values=(-f "$chart/values.yaml")
+  if [ "$mode" = --ci ]; then
+    values+=(-f "$chart/ci/values-default.yaml" -f "$profile")
+  elif [ "$name" != values-default ]; then
+    values+=(-f "$profile")
+  fi
+  helm lint "$chart" "${values[@]}"
+  helm template multica-runtime-controller "$chart" --namespace multica \
+    "${values[@]}" >"$scratch/$name.yaml"
+  go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0 \
+    -strict -summary -kubernetes-version 1.36.0 "$scratch/$name.yaml"
+done
+helm package "$chart" --destination "$scratch"

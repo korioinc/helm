@@ -17,7 +17,7 @@ spec:
               app.kubernetes.io/managed-by: multica-runtime-controller
       ports:
         - protocol: TCP
-          port: 19515
+          port: 8080
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

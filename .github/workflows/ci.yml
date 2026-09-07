@@ -17,20 +17,5 @@ jobs:
         uses: actions/checkout@v7
       - name: Install Helm
         uses: azure/setup-helm@v5
-      - name: Test chart update automation
-        run: python3 -m unittest -v scripts.test_update_chart
-      - name: Lint chart
-        run: helm lint charts/multica-runtime-controller
-      - name: Render default chart
-        run: >-
-          helm template multica-runtime-controller
-          charts/multica-runtime-controller
-          --namespace multica
-          > /tmp/multica-runtime-controller.yaml
-      - name: Validate rendered chart
-        run: >-
-          go run github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0
-          -strict -summary -kubernetes-version 1.36.0
-          /tmp/multica-runtime-controller.yaml
-      - name: Package chart
-        run: helm package charts/multica-runtime-controller --destination /tmp
+      - name: Verify all environment profiles
+        run: scripts/verify-chart.sh --ci
