@@ -1,20 +1,19 @@
-{{- range $kind, $storage := dict "workspace" .Values.workspace.storage "tools" .Values.environment.storage }}
-{{- if not $storage.existingClaim }}
----
+{{- with .Values.workspace.storage -}}
+{{- if not .existingClaim }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include (printf "multica-runtime-controller.%sClaimName" $kind) $ }}
+  name: {{ include "multica-runtime-controller.workspaceClaimName" $ }}
   labels:
     {{- include "multica-runtime-controller.labels" $ | nindent 4 }}
-    app.kubernetes.io/component: {{ $kind }}
+    app.kubernetes.io/component: workspace
 spec:
-  accessModes: [{{ $storage.accessMode }}]
+  accessModes: [{{ .accessMode }}]
   volumeMode: Filesystem
   resources:
     requests:
-      storage: {{ $storage.size | quote }}
-{{- with $storage.storageClass }}
+      storage: {{ .size | quote }}
+{{- with .storageClass }}
   storageClassName: {{ . | quote }}
 {{- end }}
 {{- end }}

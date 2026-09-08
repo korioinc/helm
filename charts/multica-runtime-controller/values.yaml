@@ -1,52 +1,33 @@
-replicaCount: 1
+# Use a complete custom image built FROM the Multica controller base.
+# The controller base alone does not contain the daemon or task tools.
+image: ghcr.io/korioinc/multica-runtime:latest
+imagePullPolicy: Always
 imagePullSecrets: []
+platform: linux/amd64
 multica:
   baseURL: https://multica.example.com
   controllerTokenSecret: {name: multica-runtime-controller-token, key: token}
 runtime:
   name: runtime-controller
-  image:
-    # Required: a digest of the new contract-version-1 core artifact.
-    reference: "ghcr.io/korioinc/multica-runtime-controller:0.3.39@sha256:c2516c0516973eecd0dba56c5e1703b593aa1efdb5cdad503e19d376e1030d96"
-    pullPolicy: IfNotPresent
   capacity: 20
   pollInterval: 10s
   heartbeatInterval: 15s
-environment:
-  image:
-    # Required: select your execution image by digest.
-    reference: ""
-    pullPolicy: IfNotPresent
-  platform: linux/amd64
-  # Required: explicitly enable at least one installed provider.
-  providers: []
-  bootstrap:
-    source: inline
-    revision: default-1
-    script: ""
-    configMap: {name: "", key: "", sha256: ""}
-    env: {}
-    secretEnvFrom: []
-    timeout: 1200
-    resources:
-      requests: {cpu: 500m, memory: 1Gi}
-      limits: {cpu: "2", memory: 4Gi}
-  storage: {existingClaim: "", size: 20Gi, storageClass: "", accessMode: ReadWriteMany}
+  startupTimeout: 120s
 workspace:
   storage: {existingClaim: "", size: 100Gi, storageClass: "", accessMode: ReadWriteMany}
 operator:
-  # Controller/provider/task configuration; never supplied to bootstrap.
   envFrom: []
   env: []
-  # ConfigMap/Secret inputs are mounted read-only only in layout init containers.
+  # Native ConfigMap volumes only. Files remain operator-owned ConfigMap data.
   configVolumes: []
-  # mountPath is the writable private HOME destination; readOnly applies to input.
+  # mountPath is the private HOME destination; optional subPath selects source.
+  # Inputs are mounted whole and read-only only in the home-layout init.
   configMounts: []
 controller:
   podAnnotations: {}
   resources:
     requests: {cpu: 100m, memory: 128Mi}
-    limits: {cpu: 500m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
 worker:
   resources:
     requests: {cpu: 500m, memory: 1Gi}
@@ -56,7 +37,7 @@ worker:
 scheduling:
   nodeSelector: {}
   tolerations: []
-  # Node metadata.name; required if either PVC uses ReadWriteOnce.
+  # Node metadata.name; required for a ReadWriteOnce workspace PVC.
   singleNodeName: ""
 podDisruptionBudget: {enabled: true, maxUnavailable: 1}
 networkPolicy: {enabled: true}

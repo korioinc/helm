@@ -1,9 +1,9 @@
 apiVersion: v2
 name: multica-runtime-controller
-description: Multica runtime core with operator-selected immutable environments
+description: Complete custom runtime images with controller ABI 2, private task homes and isolated workspaces
 type: application
-version: 0.3.0
-appVersion: "0.3.39"
+version: 0.4.0
+appVersion: "2"
 home: https://github.com/korioinc/multica-runtime-controller
 sources:
   - https://github.com/korioinc/multica-runtime-controller
@@ -20,17 +20,9 @@ annotations:
   artifacthub.io/category: ai-machine-learning
   artifacthub.io/changes: |
     - kind: changed
-      description: Require explicit execution image, providers and bootstrap configuration
-    - kind: changed
-      description: Copy operator configuration into writable private provider homes
-  artifacthub.io/images: |
-    - name: multica-runtime-core
-      image: ghcr.io/korioinc/multica-runtime-controller:0.3.39@sha256:c2516c0516973eecd0dba56c5e1703b593aa1efdb5cdad503e19d376e1030d96
-      platforms:
-        - linux/amd64
-        - linux/arm64
+      description: Use complete custom runtime images with controller ABI 2 and immutable configuration snapshots
   artifacthub.io/links: |
-    - name: source
+    - name: Runtime image source
+      url: https://github.com/korioinc/multica-runtime
+    - name: Controller source
       url: https://github.com/korioinc/multica-runtime-controller
-    - name: support
-      url: https://github.com/korioinc/multica-runtime-controller/issues

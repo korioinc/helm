@@ -39,8 +39,10 @@ kubectl --namespace multica create secret generic multica-runtime-controller-tok
   --from-literal=token='mul_...'
 ```
 
-Configure a digest-pinned execution image, a nonempty provider list and an inline
-or ConfigMap bootstrap in `values.yaml`, then install or upgrade the controller:
+Configure the connection and workspace storage in `values.yaml`. Chart 0.4.0
+defaults to the complete `ghcr.io/korioinc/multica-runtime:latest` image with
+`imagePullPolicy: Always`. Set `image` to your complete custom image tag or digest
+when needed, then install the controller:
 
 ```shell
 helm upgrade --install multica-runtime-controller \
@@ -50,13 +52,17 @@ helm upgrade --install multica-runtime-controller \
   --set multica.baseURL=https://multica.example.com
 ```
 
-Chart 0.3.0 requires runtime core 0.3.39 or later and leaves the execution
-environment unconfigured. No language or provider installation is selected by
-default. Image, providers and bootstrap must be supplied explicitly; the opt-in
-installer examples are described in the chart README. Separate tools/workspace
-PVCs are required. Operator configuration is copied into writable private provider
-homes during init. Upgrade the chart and its pinned core together; old combined
-images and old values are incompatible.
+Chart 0.4.0 uses controller ABI 2. The controller base alone does not contain the
+Multica daemon or task tools; complete images are built in the
+[runtime repository](https://github.com/korioinc/multica-runtime). The controller
+binds workers to its verified running image digest and platform. Operator
+ConfigMap files are copied into private writable homes and fixed in immutable
+snapshots for that controller's workers. Only the workspace PVC is managed.
+
+Legacy `runtime.image`, `environment` and `replicaCount` values are rejected.
+Existing schema 1 workspaces require explicit migration; preserve workspace and
+identity data when moving from an older chart. See the chart README for the
+retention implications of removing the former Tools PVC manifest.
 
 ## Configuration
 

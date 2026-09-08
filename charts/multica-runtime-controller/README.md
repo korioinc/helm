@@ -1,287 +1,126 @@
-# multica-runtime-controller
+# Multica Runtime Controller
 
-The official Multica daemon runs in an operator-selected environment. Every
-approved provider task runs in its own Kubernetes Pod, using the same core
-artifact, environment image digest, platform and immutable tools generation.
-Tools and workspace use separate PVCs. Workers receive only their validated
-workspace storage binding, never the controller's full PVC root.
+완성된 custom runtime 이미지를 Kubernetes controller와 task Pod에서 실행하는 chart입니다. Chart `0.4.x`는 controller ABI `2`를 사용하며, `appVersion: "2"`는 이미지 버전이 아니라 이 ABI를 나타냅니다.
 
-## Configure an execution environment
+`ghcr.io/korioinc/multica-runtime:latest`가 기본 이미지이고 pull policy는 `Always`입니다. 다른 이미지는 [controller 베이스](https://github.com/korioinc/multica-runtime-controller)를 상속하고 공식 Multica CLI, 사용할 provider, 도구, runtime descriptor와 검증 기록을 포함해야 합니다. CLI가 없는 controller 베이스를 직접 지정하면 runtime 시작 검증에서 거부됩니다. 제작 방법과 도구 버전은 [runtime 저장소](https://github.com/korioinc/multica-runtime)에서 관리합니다.
 
-Use Kubernetes 1.36+, Helm 3 or 4, Linux amd64 or arm64, and storage supporting
-POSIX locks, atomic rename, fsync and executable files. Supply an existing
-controller token Secret and two different PVCs or provisioners.
+Controller는 시작 시 자기 Pod UID, init/main의 실제 imageID, 이미지 receipt와 플랫폼을 검증합니다. 이후 worker와 worker init은 해당 digest와 플랫폼을 사용합니다. `latest`가 바뀌어도 실행 중인 controller의 task 이미지가 바뀌지 않습니다. OCI index digest도 그대로 고정하고 플랫폼을 함께 제한합니다. 새 latest 게시가 기존 Pod를 자동 재생성하지는 않습니다.
 
-Chart 0.3.0 leaves the environment image, provider list and bootstrap script
-unconfigured. Rendering without those inputs fails before any Pod is created.
-No language or provider installation is selected automatically. The chart requires
-runtime core 0.3.39 or later for configuration copying and contract version 1.
-Upgrade the chart and its pinned core together; older cores cannot run the new
-layout arguments.
+## 필수 연결과 이미지 선택
 
-Select your digest-pinned image, at least one installed provider and a bootstrap
-in your values file. For example, an image with its own bootstrap entrypoint can
-use this configuration after replacing the image reference:
+Controller token Secret은 같은 namespace에 미리 준비해야 합니다. 최소 values 예시는 다음과 같습니다.
 
 ```yaml
-environment:
-  image:
-    reference: registry.example.com/team/agent-environment@sha256:<image-digest>
-  providers: [codex]
-  bootstrap:
-    source: inline
-    revision: operator-1
-    script: |
-      #!/bin/sh
-      exec /usr/local/share/multica/bootstrap.sh
+image: ghcr.io/korioinc/multica-runtime:latest
+imagePullPolicy: Always
+platform: linux/amd64
+multica:
+  baseURL: https://multica.example.com
+  controllerTokenSecret:
+    name: multica-runtime-controller-token
+    key: token
+workspace:
+  storage:
+    size: 100Gi
+    storageClass: shared-workspace
+    accessMode: ReadWriteMany
 ```
-
-The entrypoint path above is an operator-image example, not a file supplied by
-the core. Bootstrap must prepare `environment.json` and the selected provider
-entrypoints under `ENV_ROOT`, even when all tools are already installed in the
-image. It may prepare existing tools without downloading or installing anything.
-Core then checks the manifest, provider versions and executable fingerprints.
-
-For an existing ConfigMap, select `source: configMap`, set `configMap.name`,
-`configMap.key` and the lowercase SHA-256 of its exact script bytes in
-`configMap.sha256`, and leave `script` empty. Init snapshots and verifies the
-script before execution. `source: inline` uses only the supplied `script`.
-
-Install after supplying that environment configuration, the controller token
-Secret and storage settings for your cluster:
 
 ```sh
-helm upgrade --install multica-runtime-controller ./charts/multica-runtime-controller \
-  --namespace multica --create-namespace \
-  -f values.yaml \
-  --set-string multica.baseURL=https://multica.example.com \
-  --set-string multica.controllerTokenSecret.name=multica-controller-token
+helm repo add korioinc https://korioinc.github.io/helm
+helm upgrade --install multica-runtime-controller korioinc/multica-runtime-controller \
+  --namespace multica --version 0.4.0 --values values.yaml
 ```
 
-Use Kubernetes 1.36+, Helm 3 or 4, Linux amd64 or arm64, and storage supporting
-POSIX locks, atomic rename, fsync and executable files. Set `environment.platform`
-to the image platform used by your cluster. Old combined runtime images are
-incompatible. A different compatible core release can be selected through
-`runtime.image.reference`.
+`image`에는 version tag, `repository@sha256:...`, 또는 tag와 digest가 함께 있는 참조를 지정할 수 있습니다. Private registry의 경우 `imagePullSecrets: [{name: runtime-registry}]`를 추가합니다. `platform`은 `linux/amd64` 또는 `linux/arm64`이며 node selector가 다른 OS/architecture를 지정하면 render가 실패합니다. 모든 이미지에 두 플랫폼이 반드시 존재하는 것은 아니므로 선택한 custom image가 해당 플랫폼을 지원해야 합니다.
 
-The controller has one replica and uses Recreate. Its chart-owned identity Secret
-preserves the daemon/store owner ID. Reinstallation uses empty workspace and tools
-PVCs. No legacy reader, data migration or fallback to the old runtime is included.
-The chart does not render or retain the old `multica-runtime-workspace` claim.
-Prepare any credentials needed from an old installation before replacing it.
+Provider 활성 목록과 버전은 이미지 descriptor가 소유합니다. Chart에는 provider 설치 목록이나 bootstrap script 설정이 없습니다.
 
-Each storage block has `existingClaim`, `size`, `storageClass` and `accessMode`.
-Leave `existingClaim` empty for chart-owned `<fullname>-workspace` and
-`<fullname>-tools` claims. For an existing empty claim, or a new-format store from
-the same installation, set `existingClaim` and set `size` and `storageClass` to
-empty strings. Generated claims follow normal Helm lifecycle; external claims
-remain operator-owned. The two claims must differ.
+## ConfigMap 파일과 디렉터리 override
 
-## Explicit installer examples
-
-`source: bundled` is an opt-in compatibility example. It selects
-[node-providers.sh](files/environments/node-providers.sh), which installs Node
-26.7.0, Pi 0.85.0, Codex 0.153.4, Copilot 1.0.83 and Antigravity 1.1.27 into
-`/opt/multica/environment`. It installs all four provider packages; the explicit
-`environment.providers` list controls which providers the runtime exposes.
-This example is never selected by the chart's default values.
-
-To choose that installer, explicitly supply its base image and provider list:
+Provider 파일은 native ConfigMap volume으로 제공합니다. `operator.configVolumes`의 `secret`, `projected`, `hostPath`, PVC 입력은 지원하지 않습니다. 환경 변수용 `operator.envFrom`의 Secret 참조와 controller token Secret은 별도 입력입니다.
 
 ```yaml
-environment:
-  image:
-    reference: docker.io/library/buildpack-deps:bookworm-scm@sha256:4274ea4975976f86239384ac206f98af5f0978fd8f054886eec1371fc7664025
-  providers: [pi, codex, copilot, antigravity]
-  bootstrap:
-    source: bundled
-    script: ""
+operator:
+  configVolumes:
+    - name: codex-settings
+      configMap:
+        name: runtime-codex-settings
+        defaultMode: 288 # 0440: non-root init이 fsGroup으로 읽음
+        items:
+          - key: config
+            path: config.toml
+    - name: pi-settings
+      configMap:
+        name: runtime-pi-settings
+        defaultMode: 288
+  configMounts:
+    - name: codex-settings
+      subPath: config.toml
+      mountPath: /home/multica/agents/.codex/config.toml
+      readOnly: true
+    - name: pi-settings
+      mountPath: /home/multica/agents/.pi/agent
+      readOnly: true
 ```
 
-The example checksum-verifies Node/Antigravity archives and directly selected npm
-archives. npm verifies transitive integrity but resolves dependency ranges during
-first preparation. The example extracts the pinned libatomic library into tools
-for arm64 Node; it does not install OS packages into the container root filesystem.
-The first successful generation is immutable; change the revision for a new one.
+`configMounts[].mountPath`는 HOME 안의 최종 복사 위치입니다. `subPath`를 생략하면 해당 ConfigMap projection의 전체 디렉터리를 복사합니다. 지정하면 projection 안의 파일 또는 디렉터리를 선택합니다. Chart는 각 volume을 init에 **전체 projection으로 한 번만** 마운트하고, 동일 volume의 복사 입력에 같은 `sourceGroup`을 전달합니다. Kubernetes file subPath mount로 입력 세대를 고정하지 않습니다.
 
-Other complete, optional examples remain available:
+`home layout` init은 이미지 receipt를 확인하고 전체 입력 bundle을 원자적으로 확정한 뒤 HOME에 파일을 복사합니다. 초기화가 중단돼도 retry는 이미 확정한 bundle을 재사용합니다. 원본 ConfigMap이 바뀌어도 두 세대가 섞이지 않습니다. 운영자 파일이 이미지의 기본 seed보다 우선하며, 이미 생성된 HOME 파일은 retry가 덮어쓰지 않습니다.
 
-- [go-rust.sh](files/environments/go-rust.sh) installs the same Node/provider set
-  plus checksum-pinned Go 1.26.1 and Rust 1.97.1.
-- [Dockerfile.php-python](files/environments/Dockerfile.php-python) and
-  [php-python.sh](files/environments/php-python.sh) provide an operator-built image
-  with PHP CLI/curl and Python venv support plus the complete provider installer.
+대상은 canonical HOME 하위 경로여야 합니다. source/target 중복, 부모·자식 충돌, `..`, symlink를 이용한 경로 이탈을 거부합니다. 다음 경로와 그 하위는 controller가 소유합니다. 디렉터리 복사도 포함 파일을 검사합니다.
 
-Both require an explicit image, provider list and inline script. For example:
+- `.multica/config.json`, `.multica/pi-sessions`
+- `.codex/skills`, `.pi/agent/sessions`
+- `.multica-runtime`
 
-```sh
-helm template example charts/multica-runtime-controller \
-  --set-string environment.image.reference=docker.io/library/buildpack-deps:bookworm-scm@sha256:4274ea4975976f86239384ac206f98af5f0978fd8f054886eec1371fc7664025 \
-  --set-json 'environment.providers=["pi","codex","copilot","antigravity"]' \
-  --set-string environment.bootstrap.source=inline \
-  --set-string environment.bootstrap.revision=go-rust-1 \
-  --set-file environment.bootstrap.script=charts/multica-runtime-controller/files/environments/go-rust.sh
+Controller는 확정 bundle에서 source group별 immutable ConfigMap snapshot을 만듭니다. 같은 controller의 worker들은 snapshot을 공유하지만 HOME은 각자 가집니다. Snapshot의 UID·owner·내용이 맞지 않거나 없어지면 실행을 거부합니다. 원본 ConfigMap으로 fallback하지 않습니다. Worker에는 Kubernetes API token을 제공하지 않습니다.
 
-docker build -f charts/multica-runtime-controller/files/environments/Dockerfile.php-python \
-  -t operator-php-python:local charts/multica-runtime-controller/files/environments
-# Publish your image and use its digest as OPERATOR_IMAGE_DIGEST.
-helm template example charts/multica-runtime-controller \
-  --set-string environment.image.reference="$OPERATOR_IMAGE_DIGEST" \
-  --set-json 'environment.providers=["pi","codex","copilot","antigravity"]' \
-  --set-string environment.bootstrap.source=inline \
-  --set-string environment.bootstrap.revision=php-python-1 \
-  --set-file environment.bootstrap.script=charts/multica-runtime-controller/files/environments/php-python.sh
+Controller의 namespace Role은 snapshot 생성·조회와 `pods/finalizers`의 `update`를 허용합니다. 후자는 `blockOwnerDeletion` 소유 참조가 `OwnerReferencesPermissionEnforcement`를 사용하는 클러스터에서도 승인되도록 하는 권한입니다. Worker에는 이 권한을 부여하지 않습니다. Admission plugin의 기본 활성 여부를 chart의 실행 전제로 삼지 않습니다.
+
+원본을 변경한 뒤 새 controller Pod에서 입력을 다시 선택해야 합니다. Terraform 모듈은 `checksum/provider-config` annotation으로 이 변경을 전달합니다. Controller 또는 worker가 실행 중 HOME 파일을 수정해도 원본이나 다른 HOME으로 전파되지 않습니다. 파일 데이터는 ConfigMap이므로 namespace의 해당 객체 읽기 권한을 가진 주체에게 보입니다.
+
+## HOME, cache, 실행 권한
+
+Controller와 worker는 UID/GID `65532`, 읽기 전용 rootfs로 실행합니다. Init은 Pod-private emptyDir 안에 `agents`, `tmp`, `run`을 만들고 접근 권한을 `0700`으로 맞춥니다. Main에는 이 child만 각각 HOME, `/tmp`, `/run/multica`로 마운트합니다. 파일 기본 권한은 `0600`이며 필요한 owner 실행 비트만 보존합니다.
+
+Go, npm, Corepack, Cargo, Python/uv/pipx, cloud CLI와 CBM의 cache/config/IPC는 이미지가 선언한 private HOME/tmp 경로를 사용해야 합니다. 이미지의 상위 경로도 group/other writable이면 안 됩니다. Pod가 교체되면 HOME/cache 변경은 사라집니다. 지속해야 하는 설정은 ConfigMap 원본에, 작업 파일은 workspace에 보관합니다.
+
+`runtime.startupTimeout`은 기본 `120s`입니다. 양수 duration을 설정하며 chart의 startup probe는 내부 deadline보다 먼저 liveness 재시작을 유발하지 않도록 계산됩니다. 이미지·설정 binding 전에는 준비 완료로 등록하거나 task를 수락하지 않습니다.
+
+## Workspace와 기존 데이터
+
+Workspace PVC만 관리하며, Tools PVC는 만들지 않습니다. Controller는 전체 workspace registry를 소유하고 worker에는 자기 task의 subPath만 제공합니다. 작업 파일은 같은 권한 범위에서 재사용할 수 있고, 이미지·provider·설정 내용이 달라지면 호환되지 않는 Pi 세션은 분리됩니다. Snapshot 이름/UID만 달라지고 내용이 같으면 세션 호환성은 유지됩니다.
+
+기존 claim을 사용할 때는 다음과 같이 chart의 새 PVC 생성을 끕니다.
+
+```yaml
+workspace:
+  storage:
+    existingClaim: retained-task-workspace
+    size: ""
+    storageClass: ""
+    accessMode: ReadWriteOnce
+scheduling:
+  singleNodeName: worker-node-1
 ```
 
-## Bootstrap contract
+`ReadWriteOnce`에는 실제 node metadata.name인 `singleNodeName`이 필수입니다. Controller와 worker 모두 그 node로 제한됩니다. `ReadWriteMany`에서도 task별 subPath 격리는 유지됩니다. Stable daemon identity Secret과 workspace 데이터는 이미지 선택 변경으로 재생성하지 않습니다.
 
-Bootstrap receives `ENV_ROOT`, `ENV_PLATFORM`, `ENV_REVISION`, `ENV_INPUTS_FILE`
-(the non-secret string map), `ENV_MANIFEST_FILE` and `ENV_PROVIDERS` (JSON).
-`environment.bootstrap.env` participates in identity. Installation-only Secrets
-belong in `environment.bootstrap.secretEnvFrom`; they are not supplied to main
-or task containers. `timeout` is seconds, including child-process completion and
-validation. Bootstrap can write only its generation and private tmp. Surviving
-children or a timeout fail preparation.
+Schema 1 registry는 정상 실행에서 자동 변환하지 않습니다. 기존 writer와 task 자원이 중지되고 미완료 attempt가 해소된 상태에서 controller의 명시적 `workspace migrate --dry-run`과 source digest를 사용하는 `--commit`으로 이관해야 합니다. 명령 형식과 보존 조건은 controller 문서를 따릅니다. Chart rollback이나 workspace PVC 삭제가 migration을 대신하지 않습니다.
 
-The script writes `environment.json` with provider entrypoints/versions, confined
-`binDirs`, environment variables, optional non-secret `homeSeed` and argv-array
-checks. All provider probes and checks must pass. Writable caches/sessions belong
-in HOME or workspace. Never put auth tokens, rollout or session files in the seed.
-Installer and consumers mount the identical `/opt/multica/environment` prefix;
-directories are never moved after installation, preserving absolute shebangs.
+이전 chart의 `runtime.image`, `environment`, `replicaCount`는 추가 속성 오류로 거부됩니다. 이전 chart가 소유한 Tools PVC는 새 manifest에서 제거되므로 실제 Helm upgrade의 prune 대상이 될 수 있습니다. 필요한 기존 데이터는 upgrade 전에 별도 보존·소유권 해제 절차로 보호해야 합니다. 이 chart에는 기존 PVC를 삭제하거나 초기화하는 migration hook이 없습니다.
 
-Bootstrap owns the installed provider and language contents: it can replace
-entrypoints, patch packages and write non-secret defaults into `homeSeed` before
-validation. It runs as UID/GID 65532 with a read-only container root filesystem,
-so install into `ENV_ROOT` rather than `/usr` or `/usr/local`. Languages absent
-from the execution image can be downloaded and unpacked there; required shared
-libraries must also be supplied by bootstrap or the chosen image. All downloads,
-versions, checksums and upgrade policy belong to the operator's script. Changing
-the script, its non-secret inputs or revision creates a new tools generation.
-Runtime package self-updates cannot change an already prepared generation.
+## 진단과 로컬 검증
 
-For writable provider defaults, create files such as
-`$ENV_ROOT/home/.codex/config.toml` and
-`$ENV_ROOT/home/.pi/agent/settings.json`, then set `homeSeed: "home"` in the
-manifest. Core copies missing seed files into each Pod's private writable HOME.
-Operator configuration copies described below take precedence over seed defaults.
-Authentication belongs in operator configuration inputs, never the tools generation.
-
-## Storage and credential boundaries
-
-The environment ID hashes canonical JSON of `schemaVersion`, `coreImage`,
-`environmentImage`, `platform`, `scriptSHA256`, `revision`, sorted unique
-`providers`, and `inputs`. Changing the core digest also creates a new generation.
-Helm and Go sort object keys and use HTML escaping with no trailing newline.
-Secret values are excluded. Atomic READY metadata publishes `generations/<id>`;
-content digests and provider fingerprints identify actual installed bytes.
-Ready generations are read-only to main and workers and are not automatically
-garbage collected. Failed preparation does not fall back to another generation.
-
-RWX permits multiple nodes. If either PVC is RWO, `scheduling.singleNodeName` is
-required. Controller and workers retain required affinity to Node `metadata.name`,
-including after controller recreation. Hostname labels are not Node identities.
-An absent fixed Node leaves Pods Pending; automatic cross-node RWO failover is
-unsupported. ReadWriteOncePod is rejected. Declare existing claim modes accurately.
-`nodeSelector` and `tolerations` apply to workers too; platform conflicts fail
-rendering.
-
-Only materialization mounts the Pod core emptyDir read-write. Consumers run as
-UID/GID 65532 with core/tools and root filesystem read-only. A credential-free
-init captures image defaults before prepare receives installation credentials.
-Bootstrap receives no workspace, controller token, operator settings or task
-auth. The Kubernetes API token and worker-config Secret are mounted only into
-main; automatic ServiceAccount token mounting is disabled. `imagePullSecrets`
-apply to all core and environment image pulls.
-
-The controller mounts workspace root for checkout preparation and durable
-recovery. Workers receive one validated subPath and private HOME/tmp. Pi sessions
-are separate from home seed; continuation needs the same scope and EnvironmentRef.
-Changing environments preserves workspace files and starts a fresh Pi session.
-Global Codex HOME or rollout sharing is not added.
-
-`operator.envFrom` and `operator.env` configure controller/provider/task execution.
-Worker settings are stored in a chart-owned Secret, mounted only into main, so
-inline operator values do not enter the environment ConfigMap. Values are literal;
-Kubernetes `$(VAR)` expansion is rejected. Use `valueFrom.secretKeyRef` or
-`valueFrom.configMapKeyRef` for aliases.
-
-ConfigMap, Secret and projected `operator.configVolumes` supply initial provider
-configuration. Each `operator.configMounts` entry selects a source volume and
-optional `subPath`; its `mountPath` is the destination under
-`/home/multica/agents`. The controller's `workspace-layout` and each worker's HOME
-layout init mount those inputs read-only under `/opt/multica/config-input/`, then
-copy their files into private HOME. The main containers receive the writable
-copies, without the configuration input mounts. `readOnly: true` describes the
-input mount, not the copied file.
-
-Both individual files and directories such as `.codex`, `.pi`, `.pi/agent` and
-`.multica` are supported. This lets providers change settings, refresh an
-`auth.json`, create plugins and customize their native directories. Files are
-private to UID 65532 (mode 0600, with the source owner executable bit preserved);
-directory access permissions are 0700 (volume setgid may be inherited). Copies
-create missing files only, so existing files
-survive an init retry. Input configuration is copied before `homeSeed`, so it
-wins over bootstrap defaults. Copying is per file, not an atomic directory swap.
-
-The runtime rejects configuration targeting or containing protected
-`.multica/config.json`, `.multica/pi-sessions`, `.codex/skills` and
-`.pi/agent/sessions` paths, including empty directories, and rejects files that
-would replace their parent directories. These paths belong to daemon authority,
-assigned skills or persisted task sessions. Directory sources must omit them.
-PVC configuration inputs are unsupported. See
-[the RWX example](ci/values-rwx.yaml).
-
-Use `controller.podAnnotations` for controller rollout annotations, such as a
-checksum computed from native provider configuration. Configuration files stay
-in each Pod's writable HOME for that Pod's lifetime. ConfigMap and Secret updates
-are picked up by a new Pod; they do not overwrite running provider changes.
-Pod replacement resets HOME to current inputs and defaults; local settings and
-credential refreshes are not written back to the source ConfigMaps or Secrets. The chart always
-controls `multica.io/environment-id`, `checksum/worker-config` and `checksum/config`;
-custom annotations cannot override them.
-
-Provider credentials retain their remote authorization scope. Per-task local
-storage isolation does not narrow a token's GitHub permissions. Provider code can
-use its own credentials. Installation and execution credentials have separate
-inputs and mount boundaries.
-
-## Verification and release
-
-Inspect `core-materialize`, `workspace-layout`, `environment-defaults` and
-`environment-prepare` logs when a Pod remains in init. Main readiness combines
-verified environment startup with `/healthz`. Offline CLI probes establish
-installation/entrypoint execution; authentication and external model services
-need operational verification. Arbitrary operator scripts may print their own
-secrets. Runtime diagnostics omit full argv, prompts and task env values.
-
-Run repository-owned verification from the Helm repository:
+- Descriptor/CLI hash/ABI 오류: 해당 controller source와 adapter 검증으로 완성 이미지를 다시 만들어야 합니다.
+- Image receipt 또는 init/main 불일치: 서로 다른 빌드가 한 Pod에서 선택됐습니다. 현재 latest를 추정해 이어서 실행하지 않습니다.
+- Pull 가능한 imageID가 없음: bare config digest는 실행 이미지 증거가 아닙니다. CRI가 repository manifest digest를 보고하는지 확인합니다.
+- Snapshot 충돌·UID 교체·payload 불일치: 동명 객체를 덮어쓰거나 임의 채택하지 않습니다. 실패 phase와 소유 controller Pod를 확인합니다.
+- Schema 1 또는 미완료 attempt: 파일 삭제로 우회하지 말고 명시적 migration/기존 자원 정리가 필요합니다.
 
 ```sh
 scripts/verify-chart.sh --ci
-# Verifies the released core on both platforms, then renders explicit fixtures.
-scripts/verify-chart.sh --release
 ```
 
-CI supplies a clearly marked synthetic core pin and explicit image, providers and
-bootstrap choices for six render/schema profiles. Release verification checks the
-actual default core artifact and uses that pin with the same explicit environment
-fixtures. Bare defaults are intentionally not a runnable environment. The checks
-cover updater behavior, shell syntax, Helm lint/template, Kubernetes 1.36 schema
-validation and packaging. Rendering alone does not prove actual provider,
-filesystem or Kubernetes stream behavior. The runtime repository offers an
-explicit integration command accepting this chart path for Docker/K3s proof.
-
-The hourly/manual updater resolves stable GHCR tags. Before updating, it inspects
-both native core artifacts without running their contents: contract version,
-platform, release label and executable file hashes must agree. It changes only
-`runtime.image.reference`, chart/app versions and core annotations. Environment
-image, bootstrap and operator input remain untouched. The first core pin populated
-chart 0.2.0; subsequent updates bump the chart patch version.
-
-The updater commits directly to main and dispatches `release.yml`; it does not
-create a PR. Release revalidates the actual core pin before publishing a GitHub
-Release archive and the gh-pages Helm index. An empty or old incompatible core
-cannot be published by this workflow; execution-environment inputs remain the
-operator's responsibility. The initial contract change must reach
-main before allowing the updater to consume a new core release.
+이 명령은 local Helm lint/render, Kubernetes schema 검증과 package를 수행합니다. Helm, curl, tar, shasum이 필요하며, checksum을 고정한 native kubeconform `v0.7.0`을 임시 디렉터리에 내려받습니다. Go/Python 실행 래퍼나 runtime registry 조회는 사용하지 않습니다. 실제 provider 실행이나 fsGroup 권한 호환성은 controller 저장소의 disposable local Kubernetes 검증에서 별도로 확인합니다. Helm CI는 runtime 버전을 조회하거나 기본 이미지를 자동 갱신하지 않습니다.
