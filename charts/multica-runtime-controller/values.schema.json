@@ -613,7 +613,7 @@
         "mountPath": {
           "type": "string",
           "pattern": "^/home/multica/agents/[^/].*",
-          "description": "Canonical file or directory destination beneath /home/multica/agents. Runtime daemon state, assigned Codex skills and Pi sessions are protected, including within copied directories."
+          "description": "Canonical file or directory destination beneath /home/multica/agents, including operator Codex skills. Runtime daemon state and Pi sessions are protected, including within copied directories."
         },
         "subPath": {
           "type": "string",

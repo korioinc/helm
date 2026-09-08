@@ -39,7 +39,7 @@ kubectl --namespace multica create secret generic multica-runtime-controller-tok
   --from-literal=token='mul_...'
 ```
 
-Configure the connection and workspace storage in `values.yaml`. Chart 0.4.0
+Configure the connection and workspace storage in `values.yaml`. Chart 0.4.1
 defaults to the complete `ghcr.io/korioinc/multica-runtime:latest` image with
 `imagePullPolicy: Always`. Set `image` to your complete custom image tag or digest
 when needed, then install the controller:
@@ -52,7 +52,7 @@ helm upgrade --install multica-runtime-controller \
   --set multica.baseURL=https://multica.example.com
 ```
 
-Chart 0.4.0 uses controller ABI 2. The controller base alone does not contain the
+Chart 0.4.1 uses controller ABI 2. The controller base alone does not contain the
 Multica daemon or task tools; complete images are built in the
 [runtime repository](https://github.com/korioinc/multica-runtime). The controller
 binds workers to its verified running image digest and platform. Operator

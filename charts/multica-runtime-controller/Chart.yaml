@@ -2,7 +2,7 @@ apiVersion: v2
 name: multica-runtime-controller
 description: Complete custom runtime images with controller ABI 2, private task homes and isolated workspaces
 type: application
-version: 0.4.0
+version: 0.4.1
 appVersion: "2"
 home: https://github.com/korioinc/multica-runtime-controller
 sources:
@@ -20,7 +20,7 @@ annotations:
   artifacthub.io/category: ai-machine-learning
   artifacthub.io/changes: |
     - kind: changed
-      description: Use complete custom runtime images with controller ABI 2 and immutable configuration snapshots
+      description: Allow complete provider HOME directories including operator-managed Codex skills
   artifacthub.io/links: |
     - name: Runtime image source
       url: https://github.com/korioinc/multica-runtime

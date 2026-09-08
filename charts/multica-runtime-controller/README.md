@@ -29,7 +29,7 @@ workspace:
 ```sh
 helm repo add korioinc https://korioinc.github.io/helm
 helm upgrade --install multica-runtime-controller korioinc/multica-runtime-controller \
-  --namespace multica --version 0.4.0 --values values.yaml
+  --namespace multica --version 0.4.1 --values values.yaml
 ```
 
 `image`에는 version tag, `repository@sha256:...`, 또는 tag와 digest가 함께 있는 참조를 지정할 수 있습니다. Private registry의 경우 `imagePullSecrets: [{name: runtime-registry}]`를 추가합니다. `platform`은 `linux/amd64` 또는 `linux/arm64`이며 node selector가 다른 OS/architecture를 지정하면 render가 실패합니다. 모든 이미지에 두 플랫폼이 반드시 존재하는 것은 아니므로 선택한 custom image가 해당 플랫폼을 지원해야 합니다.
@@ -50,17 +50,21 @@ operator:
         items:
           - key: config
             path: config.toml
+          - key: codebase-skill
+            path: skills/_commons/codebase-memory/SKILL.md
     - name: pi-settings
       configMap:
         name: runtime-pi-settings
         defaultMode: 288
+        items:
+          - key: settings
+            path: agent/settings.json
   configMounts:
     - name: codex-settings
-      subPath: config.toml
-      mountPath: /home/multica/agents/.codex/config.toml
+      mountPath: /home/multica/agents/.codex
       readOnly: true
     - name: pi-settings
-      mountPath: /home/multica/agents/.pi/agent
+      mountPath: /home/multica/agents/.pi
       readOnly: true
 ```
 
@@ -68,10 +72,12 @@ operator:
 
 `home layout` init은 이미지 receipt를 확인하고 전체 입력 bundle을 원자적으로 확정한 뒤 HOME에 파일을 복사합니다. 초기화가 중단돼도 retry는 이미 확정한 bundle을 재사용합니다. 원본 ConfigMap이 바뀌어도 두 세대가 섞이지 않습니다. 운영자 파일이 이미지의 기본 seed보다 우선하며, 이미 생성된 HOME 파일은 retry가 덮어쓰지 않습니다.
 
+`.codex`와 `.pi`를 디렉터리 대상으로 지정하면 중첩된 스킬과 reference 파일도 같은 상대 경로에 들어갑니다. Codex worker는 이미지 기본값과 운영자 스킬을 유지하면서 현재 작업 할당 스킬을 합성합니다. 같은 정규화 이름의 최상위 스킬 디렉터리는 작업 할당 쪽이 전체를 우선하며, 할당을 제거하면 운영자 버전이 복원됩니다. 지속적으로 관리할 스킬은 원본 provider 설정 폴더에서 수정합니다.
+
 대상은 canonical HOME 하위 경로여야 합니다. source/target 중복, 부모·자식 충돌, `..`, symlink를 이용한 경로 이탈을 거부합니다. 다음 경로와 그 하위는 controller가 소유합니다. 디렉터리 복사도 포함 파일을 검사합니다.
 
 - `.multica/config.json`, `.multica/pi-sessions`
-- `.codex/skills`, `.pi/agent/sessions`
+- `.pi/agent/sessions`
 - `.multica-runtime`
 
 Controller는 확정 bundle에서 source group별 immutable ConfigMap snapshot을 만듭니다. 같은 controller의 worker들은 snapshot을 공유하지만 HOME은 각자 가집니다. Snapshot의 UID·owner·내용이 맞지 않거나 없어지면 실행을 거부합니다. 원본 ConfigMap으로 fallback하지 않습니다. Worker에는 Kubernetes API token을 제공하지 않습니다.

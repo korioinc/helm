@@ -84,7 +84,7 @@ capabilities:
 {{- if not (hasKey $volumes .name) -}}{{- fail "operator.configMounts references an unknown configVolume" -}}{{- end -}}
 {{- $path := clean .mountPath -}}
 {{- if or (ne $path .mountPath) (not (hasPrefix "/home/multica/agents/" $path)) -}}{{- fail "operator.configMounts must copy to canonical private HOME paths" -}}{{- end -}}
-{{- range $protected := list "/home/multica/agents/.multica/config.json" "/home/multica/agents/.multica/pi-sessions" "/home/multica/agents/.codex/skills" "/home/multica/agents/.pi/agent/sessions" "/home/multica/agents/.multica-runtime" -}}
+{{- range $protected := list "/home/multica/agents/.multica/config.json" "/home/multica/agents/.multica/pi-sessions" "/home/multica/agents/.pi/agent/sessions" "/home/multica/agents/.multica-runtime" -}}
 {{- if or (eq $path $protected) (hasPrefix (printf "%s/" $protected) $path) -}}{{- fail "operator.configMounts cannot override runtime or session state" -}}{{- end -}}
 {{- end -}}
 {{- range $other := $targets -}}
