@@ -1,11 +1,2 @@
-# Render-only core fixture; never deploy this synthetic core digest.
-# This profile explicitly opts into the Node/provider installer example.
-runtime:
-  image:
-    reference: ghcr.io/korioinc/multica-runtime-controller:ci@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-environment:
-  image:
-    reference: docker.io/library/buildpack-deps:bookworm-scm@sha256:4274ea4975976f86239384ac206f98af5f0978fd8f054886eec1371fc7664025
-  providers: [pi, codex, copilot, antigravity]
-  bootstrap:
-    source: bundled
+# Exercise the chart's complete runtime image, Always policy and private layout.
+{}

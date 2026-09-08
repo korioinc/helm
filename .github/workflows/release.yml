@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
       - name: Install Helm
         uses: azure/setup-helm@v5
-      - name: Verify pinned core and chart profiles
+      - name: Verify chart contracts before packaging
         run: scripts/verify-chart.sh --release
       - name: Configure Git
         run: |

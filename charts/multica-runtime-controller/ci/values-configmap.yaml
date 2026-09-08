@@ -1,8 +1,20 @@
-environment:
-  bootstrap:
-    source: configMap
-    revision: external-1
-    configMap:
-      name: operator-bootstrap
-      key: bootstrap.sh
-      sha256: 7e7ca926206e210093f09d3f34751fd0167d7fde4b831d3b0c5c3b032ae330f9
+operator:
+  env:
+    - {name: GIT_TERMINAL_PROMPT, value: "0"}
+  configVolumes:
+    - name: provider-config
+      configMap:
+        name: synthetic-provider-config
+        defaultMode: 288
+        items:
+          - {key: codex, path: codex/config.toml}
+          - {key: pi, path: pi/settings.json}
+  configMounts:
+    - name: provider-config
+      mountPath: /home/multica/agents/.codex/config.toml
+      subPath: codex/config.toml
+      readOnly: true
+    - name: provider-config
+      mountPath: /home/multica/agents/.pi/agent/settings.json
+      subPath: pi/settings.json
+      readOnly: true

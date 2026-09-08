@@ -1,8 +1,0 @@
-# Build in advance; deploy its immutable OCI digest as environment.image.reference.
-FROM docker.io/library/buildpack-deps:bookworm-scm@sha256:4274ea4975976f86239384ac206f98af5f0978fd8f054886eec1371fc7664025
-USER 0
-RUN apt-get update \
- && apt-get install --yes --no-install-recommends php-cli php-curl python3 python3-venv \
- && php -r 'exit(extension_loaded("curl") ? 0 : 1);' \
- && rm -rf /var/lib/apt/lists/*
-USER 65532:65532
