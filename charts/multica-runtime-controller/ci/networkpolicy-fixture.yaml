@@ -1,0 +1,7 @@
+# Offline CI validates CIDR restrictions without attempting cluster discovery.
+# API auto-discovery is verified separately with helm template --dry-run=server.
+networkPolicy:
+  blockKubernetesAPI: false
+  blockedEgressCIDRs:
+    - 192.0.2.0/24
+    - 2001:db8::/64

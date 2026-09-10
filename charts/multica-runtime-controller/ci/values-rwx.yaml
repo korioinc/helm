@@ -1,0 +1,6 @@
+workspace:
+  storage:
+    existingClaim: retained-task-workspace
+    size: ""
+    storageClass: ""
+    accessMode: ReadWriteMany

@@ -1,0 +1,110 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $apiEndpoints := list }}
+{{- if .Values.networkPolicy.blockKubernetesAPI }}
+{{- $apiEndpoints = include "multica-runtime-controller.discoverKubernetesAPIEndpoints" . | fromJsonArray }}
+{{- end }}
+{{- $blockedCIDRs := .Values.networkPolicy.blockedEgressCIDRs }}
+{{- $basePeers := include "multica-runtime-controller.egressPeers" $blockedCIDRs | fromJsonArray }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "multica-runtime-controller.fullname" . }}-controller
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: controller
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/managed-by: multica-runtime-controller
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "multica-runtime-controller.fullname" . }}-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: multica-runtime-controller
+  policyTypes:
+    - Ingress
+    {{- if or $apiEndpoints $blockedCIDRs }}
+    - Egress
+    {{- end }}
+  ingress: []
+  {{- if or $apiEndpoints $blockedCIDRs }}
+  {{- if not $basePeers }}
+  egress: []
+  {{- else if not $apiEndpoints }}
+  egress:
+    - to:
+        {{- toYaml $basePeers | nindent 8 }}
+  {{- else }}
+  {{- $byPort := dict }}
+  {{- range $apiEndpoints }}
+  {{- $key := printf "%05d" (int .port) }}
+  {{- $group := default (dict "port" (int .port) "ips" (list)) (index $byPort $key) }}
+  {{- $_ := set $group "ips" (append $group.ips .ip) }}
+  {{- $_ := set $byPort $key $group }}
+  {{- end }}
+  egress:
+    - ports:
+        - protocol: UDP
+        - protocol: SCTP
+      {{- if $blockedCIDRs }}
+      to:
+        {{- toYaml $basePeers | nindent 8 }}
+      {{- end }}
+    {{- $nextPort := 1 }}
+    {{- /* Group by TCP port so one endpoint's allow rules cannot reopen another. */}}
+    {{- range $key := keys $byPort | sortAlpha }}
+    {{- $group := index $byPort $key }}
+    {{- $port := int $group.port }}
+    {{- if lt $nextPort $port }}
+    - ports:
+        - protocol: TCP
+          port: {{ $nextPort }}
+          {{- if lt $nextPort (sub $port 1) }}
+          endPort: {{ sub $port 1 }}
+          {{- end }}
+      {{- if $blockedCIDRs }}
+      to:
+        {{- toYaml $basePeers | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- $except := $blockedCIDRs }}
+    {{- range $group.ips }}
+    {{- $except = append $except (printf "%s/%d" . (ternary 128 32 (contains ":" .))) }}
+    {{- end }}
+    {{- $peers := include "multica-runtime-controller.egressPeers" $except | fromJsonArray }}
+    {{- if $peers }}
+    - ports:
+        - protocol: TCP
+          port: {{ $port }}
+      to:
+        {{- toYaml $peers | nindent 8 }}
+    {{- end }}
+    {{- $nextPort = int (add $port 1) }}
+    {{- end }}
+    {{- if le $nextPort 65535 }}
+    - ports:
+        - protocol: TCP
+          port: {{ $nextPort }}
+          {{- if lt $nextPort 65535 }}
+          endPort: 65535
+          {{- end }}
+      {{- if $blockedCIDRs }}
+      to:
+        {{- toYaml $basePeers | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+{{- end }}

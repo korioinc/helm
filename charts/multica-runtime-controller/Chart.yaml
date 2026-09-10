@@ -1,0 +1,25 @@
+apiVersion: v2
+name: multica-runtime-controller
+description: Run Multica agent tasks in dedicated Kubernetes Pods with shared workspace storage
+type: application
+version: 1.0.0
+home: https://github.com/korioinc/multica-runtime-controller
+sources:
+  - https://github.com/korioinc/multica-runtime
+  - https://github.com/korioinc/multica-runtime-controller
+  - https://github.com/korioinc/helm
+maintainers:
+  - name: jskorlol
+    email: jskorlol@gmail.com
+keywords:
+  - multica
+  - agents
+  - ai
+  - runtime
+annotations:
+  artifacthub.io/category: ai-machine-learning
+  artifacthub.io/links: |
+    - name: Runtime image source
+      url: https://github.com/korioinc/multica-runtime
+    - name: Controller source
+      url: https://github.com/korioinc/multica-runtime-controller

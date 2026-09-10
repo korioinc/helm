@@ -1,0 +1,51 @@
+# Complete runtime image used by the controller and task workers.
+# Includes the controller, daemon, providers, and task tools.
+image: ghcr.io/korioinc/multica-runtime:latest
+imagePullPolicy: Always
+imagePullSecrets: []
+platform: linux/amd64
+multica:
+  baseURL: https://multica.example.com
+  controllerTokenSecret: {name: multica-runtime-controller-token, key: token}
+runtime:
+  name: runtime-controller
+  capacity: 20
+  pollInterval: 10s
+  heartbeatInterval: 15s
+  startupTimeout: 120s
+workspace:
+  storage: {existingClaim: "", size: 100Gi, storageClass: "", accessMode: ReadWriteMany}
+operator:
+  envFrom: []
+  env: []
+  # Native ConfigMap volumes only. Files remain operator-owned ConfigMap data.
+  configVolumes: []
+  # mountPath is the private HOME destination; optional subPath selects source.
+  # Inputs are mounted whole and read-only only in the home-layout init.
+  configMounts: []
+controller:
+  podAnnotations: {}
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: "2", memory: 2Gi}
+worker:
+  # Includes providers and image-owned desktop/browser processes in each task Pod.
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {cpu: "2", memory: 4Gi}
+  taskDeadline: 21600
+  terminationGraceSeconds: 10
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  # Node metadata.name; required for a ReadWriteOnce workspace PVC.
+  singleNodeName: ""
+podDisruptionBudget: {enabled: true, maxUnavailable: 1}
+networkPolicy:
+  enabled: true
+  # Automatically discover API destinations from the installation cluster.
+  blockKubernetesAPI: true
+  # Additional network CIDRs excluded on all ports, independently of the API flag.
+  # Use network addresses: 10.10.10.0/24 for a subnet, 10.10.10.10/32 for one IP.
+  # Whole address families use canonical 0.0.0.0/0 or ::/0.
+  blockedEgressCIDRs: []

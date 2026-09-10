@@ -1,0 +1,5 @@
+workspace:
+  storage:
+    accessMode: ReadWriteOnce
+scheduling:
+  singleNodeName: synthetic-worker-node
