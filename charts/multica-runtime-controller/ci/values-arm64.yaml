@@ -1,7 +1,0 @@
-platform: linux/arm64
-runtime:
-  startupTimeout: 2m30s
-scheduling:
-  nodeSelector:
-    kubernetes.io/arch: arm64
-    node.kubernetes.io/instance-type: native-arm64

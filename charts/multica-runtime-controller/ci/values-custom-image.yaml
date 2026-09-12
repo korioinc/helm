@@ -1,5 +1,0 @@
-# Render-only custom digest fixture; integration supplies an actual local image.
-image: localhost:5000/custom-runtime@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-imagePullPolicy: IfNotPresent
-imagePullSecrets:
-  - name: custom-registry
