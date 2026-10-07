@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "multica-runtime-controller.gatewayServiceName" . }}
+  labels:
+    {{- include "multica-runtime-controller.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: controller
+  ports:
+    - name: gateway
+      port: 8080
+      targetPort: gateway
+      protocol: TCP

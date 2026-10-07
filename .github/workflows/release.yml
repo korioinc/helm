@@ -1,0 +1,108 @@
+name: Release Charts
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-charts
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+      - name: Lint chart before packaging
+        # Offline linting cannot discover the cluster's Kubernetes API endpoints.
+        # The disposable inputs satisfy the chart's required storage and NFS settings.
+        run: |
+          helm lint charts/multica-runtime-controller --strict \
+            --set networkPolicy.blockKubernetesAPI=false \
+            --set controller.storage.size=4Gi \
+            --set controller.storage.maxBytes=1073741824 \
+            --set 'nfs.trustedNodeCIDRs[0]=192.0.2.10/32'
+      - name: Configure Git
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Package chart
+        run: helm package charts/multica-runtime-controller --destination .cr-release-packages
+      - name: Install chart-releaser
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/chart-releaser.tar.gz" \
+            https://github.com/helm/chart-releaser/releases/download/v1.8.1/chart-releaser_1.8.1_linux_amd64.tar.gz
+          mkdir -p "$RUNNER_TEMP/chart-releaser"
+          tar -xzf "$RUNNER_TEMP/chart-releaser.tar.gz" -C "$RUNNER_TEMP/chart-releaser"
+          echo "$RUNNER_TEMP/chart-releaser" >> "$GITHUB_PATH"
+      - name: Publish chart release and repository index
+        shell: bash
+        env:
+          CR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY##*/}"
+          cr upload \
+            --owner "$owner" \
+            --git-repo "$repo" \
+            --token "$CR_TOKEN" \
+            --commit "$GITHUB_SHA" \
+            --package-path .cr-release-packages \
+            --skip-existing
+          cr index \
+            --owner "$owner" \
+            --git-repo "$repo" \
+            --token "$CR_TOKEN" \
+            --package-path .cr-release-packages \
+            --pages-branch gh-pages \
+            --push
+      - name: Check out repository site
+        uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+          path: .gh-pages
+      - name: Sync Artifact Hub and site metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp README.md artifacthub-repo.yml .gh-pages/
+          cat >.gh-pages/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Korio Helm Charts</title></head>
+          <body>
+            <h1>Korio Helm Charts</h1>
+            <p><code>helm repo add korioinc https://korioinc.github.io/helm</code></p>
+            <p><a href="index.yaml">Helm repository index</a></p>
+            <p><a href="https://github.com/korioinc/helm">Source repository</a></p>
+          </body>
+          </html>
+          EOF
+          touch .gh-pages/.nojekyll
+          git -C .gh-pages config user.name github-actions[bot]
+          git -C .gh-pages config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C .gh-pages add README.md artifacthub-repo.yml index.html .nojekyll
+          if ! git -C .gh-pages diff --cached --quiet; then
+            git -C .gh-pages commit -m "docs: sync repository metadata"
+            git -C .gh-pages push origin gh-pages
+          fi
+      - name: Build GitHub Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        # Pushes made with GITHUB_TOKEN do not trigger a Pages build.
+        run: gh api --method POST "repos/$GH_REPO/pages/builds"

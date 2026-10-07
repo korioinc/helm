@@ -1,0 +1,92 @@
+# Complete runtime image used by the controller and task workers.
+# Includes the controller, daemon, providers, and task tools.
+# In production, use a digest or a version tag that is never overwritten.
+image: ghcr.io/korioinc/multica-runtime:2.0.0
+imagePullPolicy: IfNotPresent
+imagePullSecrets: []
+platform: linux/amd64
+multica:
+  baseURL: https://multica.example.com
+  controllerTokenSecret: {name: multica-runtime-controller-token, key: token}
+runtime:
+  name: runtime-controller
+  capacity: 20
+  # Follow-up turns retain the admitted worker and its original browser profile.
+  conversationIdleTimeout: 10m
+  # Zero resolves to execution capacity; idle Pods still consume resident slots.
+  maxResidentPods: 0
+  pollInterval: 10s
+  heartbeatInterval: 15s
+  startupTimeout: 120s
+nfs:
+  # pv-mounter build 4e6389bf15; multi-platform NFS-Ganesha 9.5.
+  image: docker.io/bfenski/nfs-ganesha@sha256:23b5624a714b8bcb34b2a6f03b26839142bb558ff5d89012cc456b5eb91e1bb3
+  resources:
+    # Reserve capacity for the shared server; allow CPU bursts during flushes.
+    requests: {cpu: 500m, memory: 1Gi}
+    # Includes Ganesha and filesystem page cache. CPU has no default limit.
+    limits: {memory: 4Gi}
+  # Actual node/CNI interface sources; never allow an entire Pod CIDR.
+  trustedNodeCIDRs: []
+packageProxy:
+  enabled: true
+  # git-pkgs/proxy v0.8.1; linux/amd64 and linux/arm64.
+  image: ghcr.io/git-pkgs/proxy@sha256:cf880e1409fd2086909c6f1423955abe70706a51735c3e0260a823d9e0c6fe5e
+  # Artifact LRU budget, not a filesystem quota. Leave room for SQLite/metadata.
+  maxCacheSize: 8GB
+  storage:
+    existingClaim: ""
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {memory: 1Gi}
+operator:
+  envFrom: []
+  env: []
+  # Native ConfigMap volumes only. Files remain operator-owned ConfigMap data.
+  configVolumes: []
+  # mountPath is the private HOME destination; optional subPath selects source.
+  # Inputs are mounted whole and read-only only in the home-layout init.
+  configMounts: []
+controller:
+  # One filesystem PVC, separated into controller/, nfs-recovery/ and workspace/.
+  # Capacity must be selected explicitly and leave metadata/recovery headroom.
+  storage:
+    existingClaim: ""
+    size: ""
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    maxTasks: 1000
+    maxBytes: 0
+    maxConcurrentPreparations: 4
+  nodeSelector: {}
+  tolerations: []
+  podAnnotations: {}
+  hostAliases: []
+  resources:
+    requests: {cpu: 100m, memory: 128Mi, ephemeral-storage: 1Gi}
+    limits: {cpu: "2", memory: 2Gi, ephemeral-storage: 24Gi}
+worker:
+  taskDeadline: 21600
+  terminationGraceSeconds: 10
+  preparationTimeoutSeconds: 600
+  temporarySizeLimit: 4Gi
+  resources:
+    requests: {cpu: "1", memory: 2Gi, ephemeral-storage: 1Gi}
+scheduling:
+  # Worker placement is independent of controller state volume placement.
+  nodeSelector: {}
+  tolerations: []
+podDisruptionBudget: {enabled: true, maxUnavailable: 1}
+networkPolicy:
+  enabled: true
+  # Automatically discover API destinations from the installation cluster.
+  blockKubernetesAPI: true
+  # Additional CIDRs excluded from public worker egress, independently of the API flag.
+  # Use network addresses: 10.10.10.0/24 for a subnet, 10.10.10.10/32 for one IP.
+  # Whole address families use canonical 0.0.0.0/0 or ::/0.
+  # Include public control-plane endpoints absent from Kubernetes Service/EndpointSlices.
+  blockedEgressCIDRs: []
+  # Additional backing-storage endpoints excluded from public worker egress.
+  rawStorageCIDRs: []

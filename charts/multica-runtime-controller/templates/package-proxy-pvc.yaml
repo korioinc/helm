@@ -1,0 +1,21 @@
+{{- if and .Values.packageProxy.enabled (not .Values.packageProxy.storage.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "multica-runtime-controller.packageProxyClaimName" . }}
+  labels:
+    {{- include "multica-runtime-controller.labels" . | nindent 4 }}
+    app.kubernetes.io/component: package-proxy
+    multica.ai/owner-id: {{ include "multica-runtime-controller.ownerID" . | quote }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: {{ .Values.packageProxy.storage.size | quote }}
+  {{- with .Values.packageProxy.storage.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,17 @@
+{{- if .Values.packageProxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "multica-runtime-controller.packageProxyName" . }}
+  labels:
+    {{- include "multica-runtime-controller.labels" . | nindent 4 }}
+    app.kubernetes.io/component: package-proxy
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: controller
+  ports:
+    - {name: packages, port: 8081, targetPort: packages, protocol: TCP}
+{{- end }}

@@ -1,0 +1,24 @@
+{{- with .Values.controller.storage -}}
+{{- if not .existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "multica-runtime-controller.storageClaimName" $ }}
+  labels:
+    {{- include "multica-runtime-controller.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: storage
+    multica.ai/storage-layout: controller-nfs-v1
+    multica.ai/owner-id: {{ include "multica-runtime-controller.ownerID" $ | quote }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [{{ .accessMode }}]
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: {{ .size | quote }}
+  {{- with .storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

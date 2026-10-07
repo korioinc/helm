@@ -1,0 +1,28 @@
+name: Lint Charts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+      - name: Lint chart
+        # Offline linting cannot discover the cluster's Kubernetes API endpoints.
+        # The documentation-only TEST-NET address is a disposable rendering input.
+        run: |
+          helm lint charts/multica-runtime-controller --strict \
+            --set networkPolicy.blockKubernetesAPI=false \
+            --set controller.storage.size=4Gi \
+            --set controller.storage.maxBytes=1073741824 \
+            --set 'nfs.trustedNodeCIDRs[0]=192.0.2.10/32'

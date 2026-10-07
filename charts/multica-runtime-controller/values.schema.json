@@ -1,0 +1,889 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "multica": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseURL": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "controllerTokenSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "key"
+          ]
+        }
+      },
+      "required": [
+        "baseURL",
+        "controllerTokenSecret"
+      ]
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "pollInterval": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(ms|s|m|h)$"
+        },
+        "heartbeatInterval": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(ms|s|m|h)$"
+        },
+        "startupTimeout": {
+          "type": "string",
+          "pattern": "^(?:[0-9]+(?:\\.[0-9]+)?(?:ms|s|m|h))+$",
+          "description": "Positive startup deadline; the startup probe permits this deadline plus initialization margin."
+        },
+        "conversationIdleTimeout": {
+          "type": "string",
+          "pattern": "^(?:[0-9]+(?:\\.[0-9]+)?(?:ms|s|m|h))+$",
+          "description": "Nonnegative idle duration. Zero closes each worker Pod after its task."
+        },
+        "maxResidentPods": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Resident Pod limit. Zero resolves to runtime.capacity."
+        }
+      },
+      "required": [
+        "name",
+        "capacity",
+        "pollInterval",
+        "heartbeatInterval",
+        "startupTimeout",
+        "conversationIdleTimeout",
+        "maxResidentPods"
+      ]
+    },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "envFrom": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/envFrom"
+          }
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/envVar"
+          }
+        },
+        "configVolumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/configVolume"
+          }
+        },
+        "configMounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/configMount"
+          }
+        }
+      },
+      "required": [
+        "envFrom",
+        "env",
+        "configVolumes",
+        "configMounts"
+      ]
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hostAliases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nativeHostAlias"
+          }
+        },
+        "resources": {
+          "$ref": "#/$defs/resources"
+        },
+        "podAnnotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "nodeSelector": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tolerations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "Exists",
+                  "Equal"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "effect": {
+                "type": "string",
+                "enum": [
+                  "NoSchedule",
+                  "PreferNoSchedule",
+                  "NoExecute"
+                ]
+              },
+              "tolerationSeconds": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": []
+          }
+        },
+        "storage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "existingClaim": {
+              "type": "string"
+            },
+            "size": {
+              "type": "string"
+            },
+            "storageClass": {
+              "type": "string"
+            },
+            "maxTasks": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxConcurrentPreparations": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32
+            },
+            "accessMode": {
+              "type": "string",
+              "enum": [
+                "ReadWriteOnce"
+              ]
+            }
+          },
+          "required": [
+            "existingClaim",
+            "size",
+            "storageClass",
+            "accessMode",
+            "maxTasks",
+            "maxBytes",
+            "maxConcurrentPreparations"
+          ],
+          "oneOf": [
+            {
+              "properties": {
+                "existingClaim": {
+                  "minLength": 1
+                },
+                "size": {
+                  "const": ""
+                },
+                "storageClass": {
+                  "const": ""
+                }
+              }
+            },
+            {
+              "properties": {
+                "existingClaim": {
+                  "const": ""
+                },
+                "size": {
+                  "type": "string",
+                  "pattern": "^(?:[0-9]*[1-9][0-9]*(?:\\.[0-9]+)?|0\\.[0-9]*[1-9][0-9]*)(?:[EPTGM]i?|Ki|k|[eE][+-]?[0-9]+|m)?$"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "resources",
+        "podAnnotations",
+        "hostAliases",
+        "nodeSelector",
+        "tolerations",
+        "storage"
+      ]
+    },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "taskDeadline": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 31536000
+        },
+        "terminationGraceSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "temporarySizeLimit": {
+          "type": "string",
+          "pattern": "^(?:[0-9]*[1-9][0-9]*(?:\\.[0-9]+)?|0\\.[0-9]*[1-9][0-9]*)(?:[EPTGM]i?|Ki|k|[eE][+-]?[0-9]+|m)?$"
+        },
+        "resources": {
+          "$ref": "#/$defs/workerResources"
+        },
+        "preparationTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        }
+      },
+      "required": [
+        "taskDeadline",
+        "terminationGraceSeconds",
+        "temporarySizeLimit",
+        "resources",
+        "preparationTimeoutSeconds"
+      ]
+    },
+    "scheduling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodeSelector": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tolerations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "Exists",
+                  "Equal"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "effect": {
+                "type": "string",
+                "enum": [
+                  "NoSchedule",
+                  "PreferNoSchedule",
+                  "NoExecute"
+                ]
+              },
+              "tolerationSeconds": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      "required": [
+        "nodeSelector",
+        "tolerations"
+      ]
+    },
+    "podDisruptionBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxUnavailable": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "pattern": "^(?:[0-9]+|0*(?:[0-9]|[1-9][0-9]|100)%)$"
+            }
+          ]
+        }
+      },
+      "required": [
+        "enabled",
+        "maxUnavailable"
+      ]
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "const": true
+        },
+        "blockKubernetesAPI": {
+          "type": "boolean"
+        },
+        "blockedEgressCIDRs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])/(?:[0-9]|[12][0-9]|3[0-2])|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*/(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))$"
+          },
+          "description": "Additional canonical CIDRs excluded from public worker TCP 22/80/443 egress. Explicit controller and DNS routes remain. Use 0.0.0.0/0 or ::/0 for an entire address family."
+        },
+        "rawStorageCIDRs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])/(?:[0-9]|[12][0-9]|3[0-2])|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*/(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))$"
+          },
+          "description": "Additional backing-storage endpoints excluded from worker sockets."
+        }
+      },
+      "required": [
+        "enabled",
+        "blockKubernetesAPI",
+        "blockedEgressCIDRs",
+        "rawStorageCIDRs"
+      ]
+    },
+    "image": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*|\\[[a-fA-F0-9:]+\\])(?::[0-9]+)?/)?[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)*(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127})?(?:@sha256:[a-f0-9]{64})?$",
+      "description": "Complete runtime image. Workers use the controller-admitted immutable repository digest."
+    },
+    "imagePullPolicy": {
+      "type": "string",
+      "enum": [
+        "Always",
+        "IfNotPresent",
+        "Never"
+      ]
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    "nfs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9.:/_-]*@sha256:[a-f0-9]{64}$"
+        },
+        "resources": {
+          "$ref": "#/$defs/resources"
+        },
+        "trustedNodeCIDRs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])/(?:[0-9]|[12][0-9]|3[0-2])|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*/(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))$",
+            "not": {
+              "enum": [
+                "0.0.0.0/0",
+                "::/0"
+              ]
+            }
+          },
+          "description": "Trusted node NFS client source CIDRs, excluding all Pod addresses.",
+          "minItems": 1
+        }
+      },
+      "required": [
+        "image",
+        "resources",
+        "trustedNodeCIDRs"
+      ]
+    },
+    "packageProxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9.:/_-]*@sha256:[a-f0-9]{64}$"
+        },
+        "maxCacheSize": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(KB|MB|GB)?$",
+          "description": "Positive artifact LRU budget in bytes, KB, MB or GB; not a filesystem quota."
+        },
+        "storage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "existingClaim": {
+              "type": "string"
+            },
+            "size": {
+              "type": "string",
+              "pattern": "^(?:[0-9]*[1-9][0-9]*(?:\\.[0-9]+)?|0\\.[0-9]*[1-9][0-9]*)(?:[EPTGM]i?|Ki|k|[eE][+-]?[0-9]+|m)?$"
+            },
+            "storageClass": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "existingClaim",
+            "size",
+            "storageClass"
+          ]
+        },
+        "resources": {
+          "$ref": "#/$defs/resources"
+        }
+      },
+      "required": [
+        "enabled",
+        "image",
+        "maxCacheSize",
+        "storage",
+        "resources"
+      ]
+    }
+  },
+  "required": [
+    "imagePullSecrets",
+    "multica",
+    "runtime",
+    "operator",
+    "controller",
+    "worker",
+    "scheduling",
+    "podDisruptionBudget",
+    "networkPolicy",
+    "image",
+    "imagePullPolicy",
+    "platform",
+    "nfs",
+    "packageProxy"
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "nativeHostAlias": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ip": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "ipv4"
+            },
+            {
+              "format": "ipv6"
+            }
+          ]
+        },
+        "hostnames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+          }
+        }
+      },
+      "required": [
+        "ip",
+        "hostnames"
+      ]
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "$ref": "#/$defs/quantities"
+        },
+        "limits": {
+          "$ref": "#/$defs/quantities"
+        }
+      },
+      "required": []
+    },
+    "quantities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ephemeral-storage": {
+          "type": "string",
+          "pattern": "^(?:[0-9]*[1-9][0-9]*(?:\\.[0-9]+)?|0\\.[0-9]*[1-9][0-9]*)(?:[EPTGM]i?|Ki|k|[eE][+-]?[0-9]+|m)?$"
+        }
+      },
+      "required": []
+    },
+    "envFrom": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "secretRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "configMapRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      "required": [],
+      "oneOf": [
+        {
+          "required": [
+            "secretRef"
+          ]
+        },
+        {
+          "required": [
+            "configMapRef"
+          ]
+        }
+      ]
+    },
+    "envVar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "value": {
+          "type": "string"
+        },
+        "valueFrom": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "secretKeyRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253,
+                  "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "optional": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "key"
+              ]
+            },
+            "configMapKeyRef": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 253,
+                  "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "optional": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "key"
+              ]
+            }
+          },
+          "required": [],
+          "oneOf": [
+            {
+              "required": [
+                "secretKeyRef"
+              ]
+            },
+            {
+              "required": [
+                "configMapKeyRef"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "required": [
+            "valueFrom"
+          ]
+        }
+      ]
+    },
+    "configVolume": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "configMap": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 253,
+              "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"
+            },
+            "optional": {
+              "const": false
+            },
+            "defaultMode": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 511
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^/].*"
+                  },
+                  "mode": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 511
+                  }
+                },
+                "required": [
+                  "key",
+                  "path"
+                ]
+              }
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "configMap"
+      ]
+    },
+    "configMount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mountPath": {
+          "type": "string",
+          "pattern": "^/home/multica/agents/[^/].*",
+          "description": "Canonical configuration destination beneath task HOME. Daemon control metadata is supplied separately."
+        },
+        "subPath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/].*",
+          "description": "Optional source file or directory within the selected configVolume."
+        },
+        "readOnly": {
+          "const": true,
+          "description": "The input volume is always read-only and mounted only in layout init. The destination copy is writable by the runtime user."
+        }
+      },
+      "required": [
+        "name",
+        "mountPath",
+        "readOnly"
+      ],
+      "description": "Copy one read-only operator input into private writable native HOME during layout initialization. Existing files are preserved; a new Pod receives fresh input copies."
+    },
+    "workerResources": {
+      "type": "object",
+      "description": "CPU, memory and ephemeral-storage cover provider, tools, HOME, private temporary files and logs. Limits are optional and have no defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/quantities"
+            },
+            {
+              "required": [
+                "cpu",
+                "memory",
+                "ephemeral-storage"
+              ]
+            }
+          ]
+        },
+        "limits": {
+          "$ref": "#/$defs/quantities"
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
+  }
+}

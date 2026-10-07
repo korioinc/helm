@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "multica-runtime-controller.nfsServiceName" . }}
+  labels:
+    {{- include "multica-runtime-controller.labels" . | nindent 4 }}
+    multica.ai/owner-id: {{ include "multica-runtime-controller.ownerID" . | quote }}
+spec:
+  type: ClusterIP
+  # Existing hard mounts must reconnect while controller admission is recovering.
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: controller
+    multica.ai/owner-id: {{ include "multica-runtime-controller.ownerID" . | quote }}
+  ports:
+    - {name: nfs, port: 2049, targetPort: 2049, protocol: TCP}

@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "multica-runtime-controller.nfsServiceName" . }}
+data:
+  ganesha.conf: |
+    NFS_Core_Param {
+      NFS_Protocols = 4;
+      Bind_addr = 0.0.0.0;
+      Enable_NLM = false;
+      Enable_RQUOTA = false;
+      Allow_Set_Io_Flusher_Fail = true;
+    }
+    NFSv4 {
+      # Ganesha 9.5 returns OP_ILLEGAL for directory delegations on newer clients.
+      # ponytail: use 4.0 until a verified project image fixes GET_DIR_DELEGATION.
+      Minor_Versions = 0;
+      Delegations = false;
+      Grace_Period = 90;
+      RecoveryBackend = fs_ng;
+      RecoveryRoot = /var/lib/nfs/ganesha;
+      Server_Owner = {{ printf "%s.%s" (include "multica-runtime-controller.nfsServiceName" .) .Release.Namespace | quote }};
+      Server_Scope = {{ printf "%s.%s" (include "multica-runtime-controller.nfsServiceName" .) .Release.Namespace | quote }};
+    }
+    EXPORT {
+      Export_Id = 1;
+      Path = /workspace;
+      Pseudo = /workspace;
+      Access_Type = RW;
+      Squash = Root_Squash;
+      Anonymous_uid = 65532;
+      Anonymous_gid = 65532;
+      SecType = sys;
+      Transports = TCP;
+      Protocols = 4;
+      Disable_ACL = true;
+      FSAL { Name = VFS; }
+    }
+    LOG { Default_Log_Level = WARN; }
+  ready.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    # A TCP listener can exist with no valid export. Resolve /workspace over NFS.
+    xid=$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')
+    printf -v xid_bytes '\\x%s\\x%s\\x%s\\x%s' "${xid:0:2}" "${xid:2:2}" "${xid:4:2}" "${xid:6:2}"
+    exec 3<>/dev/tcp/127.0.0.1/2049
+    # Record marker, XID, RPC/AUTH_SYS header, PUTROOTFH + LOOKUP + GETFH.
+    printf '%b' '\x80\x00\x00\x64' "$xid_bytes" '\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xa3\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xfc\x00\x00\xff\xfc\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x18\x00\x00\x00\x0f\x00\x00\x00\x09\x77\x6f\x72\x6b\x73\x70\x61\x63\x65\x00\x00\x00\x00\x00\x00\x0a' >&3
+    marker=$(dd bs=4 count=1 iflag=fullblock <&3 2>/dev/null | od -An -tx1 -v | tr -d ' \n')
+    length=$((16#$marker & 0x7fffffff))
+    test $((16#$marker & 0x80000000)) -ne 0 && test "$length" -gt 0 && test "$length" -le 1024
+    # Drain the entire small reply before closing, avoiding a reset on every probe.
+    reply=$(dd bs="$length" count=1 iflag=fullblock <&3 2>/dev/null | od -An -tx1 -v | tr -d ' \n')
+    test "${reply:0:120}" = "${xid}000000010000000000000000000000000000000000000000000000000000000300000018000000000000000f000000000000000a00000000"

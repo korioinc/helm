@@ -1,0 +1,77 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $blocked := concat .Values.networkPolicy.blockedEgressCIDRs .Values.networkPolicy.rawStorageCIDRs (list "0.0.0.0/8" "10.0.0.0/8" "100.64.0.0/10" "127.0.0.0/8" "169.254.0.0/16" "172.16.0.0/12" "192.168.0.0/16" "224.0.0.0/4" "240.0.0.0/4" "::/128" "::1/128" "fc00::/7" "fe80::/10" "ff00::/8") }}
+{{- if .Values.networkPolicy.blockKubernetesAPI }}
+{{- range (include "multica-runtime-controller.discoverKubernetesAPIEndpoints" . | fromJsonArray) }}
+{{- $blocked = append $blocked (printf "%s/%d" .ip (ternary 128 32 (contains ":" .ip))) }}
+{{- end }}
+{{- end }}
+{{- $external := include "multica-runtime-controller.egressPeers" $blocked | fromJsonArray }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "multica-runtime-controller.fullname" . }}-controller
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: controller
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        {{- range .Values.nfs.trustedNodeCIDRs }}
+        - ipBlock: {cidr: {{ . | quote }}}
+        {{- end }}
+      ports:
+        - {protocol: TCP, port: 2049}
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/managed-by: multica-runtime-controller
+      ports:
+        - {protocol: TCP, port: 8080}
+        {{- if .Values.packageProxy.enabled }}
+        - {protocol: TCP, port: 8081}
+        {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "multica-runtime-controller.fullname" . }}-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: multica-runtime-controller
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "multica-runtime-controller.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: controller
+      ports:
+        - {protocol: TCP, port: 8080}
+        {{- if .Values.packageProxy.enabled }}
+        - {protocol: TCP, port: 8081}
+        {{- end }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    {{- if $external }}
+    - to:
+        {{- toYaml $external | nindent 8 }}
+      ports:
+        - {protocol: TCP, port: 22}
+        - {protocol: TCP, port: 80}
+        - {protocol: TCP, port: 443}
+    {{- end }}
+{{- end }}
