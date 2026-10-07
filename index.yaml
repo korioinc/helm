@@ -1,0 +1,35 @@
+apiVersion: v1
+entries:
+  multica-runtime-controller:
+  - annotations:
+      artifacthub.io/category: ai-machine-learning
+      artifacthub.io/links: |
+        - name: Runtime image source
+          url: https://github.com/korioinc/multica-runtime
+        - name: Controller source
+          url: https://github.com/korioinc/multica-runtime-controller
+    apiVersion: v2
+    appVersion: 2.0.0
+    created: "2026-10-07T16:43:05.833899686Z"
+    description: Run Multica agent tasks in dedicated Kubernetes Pods with shared
+      workspace storage
+    digest: ff8af7b1cf1518946febe93a6d4d64a597a24b85fcb667da10aec8c084635179
+    home: https://github.com/korioinc/multica-runtime-controller
+    keywords:
+    - multica
+    - agents
+    - ai
+    - runtime
+    maintainers:
+    - email: jskorlol@gmail.com
+      name: jskorlol
+    name: multica-runtime-controller
+    sources:
+    - https://github.com/korioinc/multica-runtime
+    - https://github.com/korioinc/multica-runtime-controller
+    - https://github.com/korioinc/helm
+    type: application
+    urls:
+    - https://github.com/korioinc/helm/releases/download/multica-runtime-controller-2.0.0/multica-runtime-controller-2.0.0.tgz
+    version: 2.0.0
+generated: "2026-10-07T16:43:05.833910274Z"
