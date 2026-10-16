@@ -53,6 +53,7 @@ jobs:
         shell: bash
         env:
           CR_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           owner="${GITHUB_REPOSITORY%%/*}"
@@ -64,6 +65,15 @@ jobs:
             --commit "$GITHUB_SHA" \
             --package-path .cr-release-packages \
             --skip-existing
+          # Repackaging changes archive hashes; index the actual published assets on retries.
+          for package in .cr-release-packages/*.tgz; do
+            archive="${package##*/}"
+            gh release download "${archive%.tgz}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern "$archive" \
+              --dir .cr-release-packages \
+              --clobber
+          done
           mkdir -p .cr-index
           cr index \
             --owner "$owner" \
