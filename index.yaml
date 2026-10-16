@@ -1,5 +1,30 @@
 apiVersion: v1
 entries:
+  magpie:
+  - annotations:
+      artifacthub.io/category: ai-machine-learning
+    apiVersion: v2
+    created: "2026-10-16T15:21:41.369713755Z"
+    description: Magpie model gateway with a local management UI and persistent credentials.
+      Set the application version directly with image.tag in values.yaml (for example,
+      0.1.1275); defaults to latest.
+    digest: 75102449e6c3cfe4bd209d0c6cd3bae728539bd3eeb7d2572b09a04000347b81
+    home: https://github.com/yetone/magpie
+    keywords:
+    - magpie
+    - ai
+    - gateway
+    maintainers:
+    - email: jskorlol@gmail.com
+      name: jskorlol
+    name: magpie
+    sources:
+    - https://github.com/yetone/magpie
+    - https://github.com/korioinc/helm
+    type: application
+    urls:
+    - https://github.com/korioinc/helm/releases/download/magpie-0.1.0/magpie-0.1.0.tgz
+    version: 0.1.0
   multica-runtime-controller:
   - annotations:
       artifacthub.io/category: ai-machine-learning
@@ -32,4 +57,4 @@ entries:
     urls:
     - https://github.com/korioinc/helm/releases/download/multica-runtime-controller-2.0.0/multica-runtime-controller-2.0.0.tgz
     version: 2.0.0
-generated: "2026-10-07T16:43:05.833910274Z"
+generated: "2026-10-16T15:21:41.680230941Z"
