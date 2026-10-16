@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "magpie.fullname" . }}-bootstrap
+  labels:
+    {{- include "magpie.labels" . | nindent 4 }}
+data:
+  settings.json: |
+    {{- dict "lan" true "port" (include "magpie.apiPort" . | int) "noAutoUpdate" true "vision" "off" "imageGen" "off" | toPrettyJson | nindent 4 }}
+  providers.json: |
+    {"providers": [], "noAutoGroups": true}
+  start.sh: |
+    {{- .Files.Get "scripts/start.sh" | nindent 4 }}

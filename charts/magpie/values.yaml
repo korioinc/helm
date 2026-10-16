@@ -1,0 +1,59 @@
+image:
+  repository: ghcr.io/yetone/magpie
+  # Magpie updates frequently. Set the application version here, independently of the chart version.
+  # Use a release tag to pin the version, for example: tag: "0.1.1275".
+  tag: "latest"
+  # A digest takes precedence over the tag.
+  digest: ""
+  # Always checks for a new image on Pod startup; it does not restart running Pods.
+  pullPolicy: Always
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# This key authenticates the Web UI, independently of API gateway keys.
+auth:
+  # Empty: create <fullname>-webui with a random key, or reuse its existing key.
+  # Set a name to use an externally managed Secret without creating or changing it.
+  existingSecret: ""
+  webKeySecretKey: web-key
+
+# Keep a single replica with Recreate updates; Magpie owns files on this volume.
+persistence:
+  existingClaim: ""
+  storageClass: ""
+  size: 5Gi
+  annotations:
+    helm.sh/resource-policy: keep
+
+# This Ingress connects only to the model API.
+# Enabling the Ingress requires a host and an existing TLS Secret.
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  annotations: {}
+  tlsSecretName: ""
+
+# Optional LAN administration on a separate HTTPS host using an existing Traefik middleware.
+# Disabled keeps the Web UI on Pod loopback without a Service or Ingress.
+webui:
+  ingress:
+    enabled: false
+    className: ""
+    host: ""
+    annotations: {}
+    tlsSecretName: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

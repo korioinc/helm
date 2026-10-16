@@ -1,6 +1,6 @@
 # Korio Helm Charts
 
-Helm charts for running Korio services on Kubernetes.
+Helm charts maintained by Korio for running services on Kubernetes.
 
 ## Install
 
@@ -13,6 +13,7 @@ helm repo update
 
 | Chart | Description |
 | --- | --- |
+| [magpie](https://github.com/korioinc/helm/tree/main/charts/magpie) | Magpie model gateway with a local management UI and persistent credentials. Defaults to `latest`; set `image.tag` in `values.yaml` (e.g. `"0.1.1275"`) to pin the application version. |
 | [multica-runtime-controller](https://github.com/korioinc/helm/tree/main/charts/multica-runtime-controller) | Run Multica agent tasks in dedicated Kubernetes Pods with shared workspace storage. |
 
 Follow the chart's README for prerequisites, installation, provider configuration, and operations. Each chart includes its defaults in `values.yaml` and validation rules in `values.schema.json`.

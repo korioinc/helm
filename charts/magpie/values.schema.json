@@ -1,0 +1,219 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "image",
+    "auth",
+    "persistence",
+    "ingress",
+    "webui"
+  ],
+  "properties": {
+    "image": {
+      "type": "object",
+      "required": [
+        "repository",
+        "tag",
+        "digest",
+        "pullPolicy"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^$|^sha256:[a-f0-9]{64}$"
+        },
+        "pullPolicy": {
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "digest": {
+            "const": ""
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tag": {
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "required": [
+        "existingSecret",
+        "webKeySecretKey"
+      ],
+      "properties": {
+        "existingSecret": {
+          "type": "string"
+        },
+        "webKeySecretKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^[a-zA-Z0-9._-]+$"
+        }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "required": [
+        "existingClaim",
+        "storageClass",
+        "size",
+        "annotations"
+      ],
+      "properties": {
+        "existingClaim": {
+          "type": "string"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string",
+          "minLength": 1
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "host",
+        "className",
+        "annotations",
+        "tlsSecretName"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "host": {
+          "type": "string",
+          "pattern": "^$|^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+        },
+        "className": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tlsSecretName": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "host": {
+            "minLength": 1
+          },
+          "tlsSecretName": {
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "webui": {
+      "type": "object",
+      "required": [
+        "ingress"
+      ],
+      "properties": {
+        "ingress": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "host",
+            "className",
+            "annotations",
+            "tlsSecretName"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string",
+              "pattern": "^$|^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+            },
+            "className": {
+              "type": "string"
+            },
+            "annotations": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "tlsSecretName": {
+              "type": "string"
+            }
+          },
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "host": {
+                "minLength": 1
+              },
+              "tlsSecretName": {
+                "minLength": 1
+              },
+              "className": {
+                "const": "traefik"
+              },
+              "annotations": {
+                "required": [
+                  "traefik.ingress.kubernetes.io/router.middlewares"
+                ],
+                "properties": {
+                  "traefik.ingress.kubernetes.io/router.middlewares": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -26,3 +26,4 @@ jobs:
             --set controller.storage.size=4Gi \
             --set controller.storage.maxBytes=1073741824 \
             --set 'nfs.trustedNodeCIDRs[0]=192.0.2.10/32'
+          helm lint charts/magpie --strict

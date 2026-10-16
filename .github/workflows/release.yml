@@ -33,12 +33,13 @@ jobs:
             --set controller.storage.size=4Gi \
             --set controller.storage.maxBytes=1073741824 \
             --set 'nfs.trustedNodeCIDRs[0]=192.0.2.10/32'
+          helm lint charts/magpie --strict
       - name: Configure Git
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-      - name: Package chart
-        run: helm package charts/multica-runtime-controller --destination .cr-release-packages
+      - name: Package charts
+        run: helm package charts/multica-runtime-controller charts/magpie --destination .cr-release-packages
       - name: Install chart-releaser
         shell: bash
         run: |

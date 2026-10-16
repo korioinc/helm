@@ -1,0 +1,24 @@
+{{- if .Values.webui.ingress.enabled }}
+LAN Web UI: https://{{ .Values.webui.ingress.host }}/?k=<web-key>
+Access middleware: {{ index .Values.webui.ingress.annotations "traefik.ingress.kubernetes.io/router.middlewares" }}
+LAN DNS must resolve the admin hostname to the private Ingress entrypoint.
+{{- else }}
+The Web UI listens on Pod loopback only. Open a local tunnel:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward deployment/{{ include "magpie.fullname" . }} {{ include "magpie.webuiPort" . }}:{{ include "magpie.webuiPort" . }} --address 127.0.0.1
+
+Open http://127.0.0.1:{{ include "magpie.webuiPort" . }}/?k=<web-key>.
+{{- end }}
+
+Retrieve the Web UI key from Secret {{ include "magpie.webuiSecretName" . }}, field {{ .Values.auth.webKeySecretKey }}:
+
+  kubectl --namespace {{ .Release.Namespace }} get secret {{ include "magpie.webuiSecretName" . }} -o go-template='{{ "{{ index .data " }}{{ .Values.auth.webKeySecretKey | quote }}{{ " | base64decode }}" }}'
+
+Keep this key private. It is separate from API gateway keys.
+
+Create named gateway keys in the Web UI before connecting external API clients.
+Remote API requests without an enabled gateway key are denied.
+{{- if .Values.ingress.enabled }}
+OpenAI-compatible API base URL: https://{{ .Values.ingress.host }}/v1
+Anthropic-compatible API base URL: https://{{ .Values.ingress.host }}
+{{- end }}
