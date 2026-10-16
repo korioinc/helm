@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "magpie.fullname" . }}
+  labels:
+    {{- include "magpie.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "magpie.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ include "magpie.apiPort" . }}
+      targetPort: api
+      protocol: TCP

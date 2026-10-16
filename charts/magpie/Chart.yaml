@@ -1,0 +1,20 @@
+apiVersion: v2
+name: magpie
+description: >-
+  Magpie model gateway with a local management UI and persistent credentials.
+  Set the application version directly with image.tag in values.yaml (for example, 0.1.1275); defaults to latest.
+type: application
+version: 0.1.0
+home: https://github.com/yetone/magpie
+sources:
+  - https://github.com/yetone/magpie
+  - https://github.com/korioinc/helm
+maintainers:
+  - name: jskorlol
+    email: jskorlol@gmail.com
+keywords:
+  - magpie
+  - ai
+  - gateway
+annotations:
+  artifacthub.io/category: ai-machine-learning

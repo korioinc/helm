@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "magpie.fullname" . }}
+  labels:
+    {{- include "magpie.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "magpie.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "magpie.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/bootstrap: {{ include (print $.Template.BasePath "/bootstrap.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: magpie
+          image: {{ include "magpie.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "/bootstrap/start.sh"]
+          args:
+            - web
+            - --addr
+            - {{ printf "%s:%s" (ternary "0.0.0.0" "127.0.0.1" .Values.webui.ingress.enabled) (include "magpie.webuiPort" .) | quote }}
+            - --no-open
+            - --gateway
+          env:
+            # Clear the image's override. Settings then close external access when LAN sharing is disabled.
+            - name: MAGPIE_ADDR
+              value: ""
+            - name: MAGPIE_WEB_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "magpie.webuiSecretName" . | quote }}
+                  key: {{ .Values.auth.webKeySecretKey | quote }}
+            {{- if .Values.ingress.enabled }}
+            - name: MAGPIE_PUBLIC_URL
+              value: {{ printf "https://%s" .Values.ingress.host | quote }}
+            {{- end }}
+            - name: MAGPIE_NO_STATS
+              value: "1"
+          ports:
+            - name: api
+              containerPort: {{ include "magpie.apiPort" . }}
+            - name: webui
+              containerPort: {{ include "magpie.webuiPort" . }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            exec:
+              command: ["/magpie", "healthcheck"]
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: ["/magpie", "healthcheck"]
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            {{- if .Values.webui.ingress.enabled }}
+            # Keep administration available when the administrator disables API sharing.
+            exec:
+              command: ["/magpie", "healthcheck"]
+            {{- else }}
+            tcpSocket:
+              port: api
+            {{- end }}
+            periodSeconds: 5
+            timeoutSeconds: {{ ternary 5 3 .Values.webui.ingress.enabled }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default (include "magpie.fullname" .) }}
+        - name: bootstrap
+          configMap:
+            name: {{ include "magpie.fullname" . }}-bootstrap
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

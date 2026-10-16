@@ -1,0 +1,50 @@
+{{- if .Values.webui.ingress.enabled }}
+{{- if and .Values.ingress.enabled (eq .Values.ingress.host .Values.webui.ingress.host) }}
+{{- fail "The API and Web UI Ingress hosts must differ when both are enabled." }}
+{{- end }}
+{{- $webuiName := include "magpie.webuiName" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $webuiName }}
+  labels:
+    {{- include "magpie.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "magpie.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: webui
+      port: {{ include "magpie.webuiPort" . }}
+      targetPort: webui
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $webuiName }}
+  labels:
+    {{- include "magpie.labels" . | nindent 4 }}
+  {{- with .Values.webui.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.webui.ingress.className }}
+  ingressClassName: {{ .Values.webui.ingress.className | quote }}
+  {{- end }}
+  tls:
+    - hosts: [{{ .Values.webui.ingress.host | quote }}]
+      secretName: {{ .Values.webui.ingress.tlsSecretName | quote }}
+  rules:
+    - host: {{ .Values.webui.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $webuiName }}
+                port:
+                  name: webui
+{{- end }}
