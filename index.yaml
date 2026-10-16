@@ -8,7 +8,7 @@ entries:
     description: Magpie model gateway with a local management UI and persistent credentials.
       Set the application version directly with image.tag in values.yaml (for example,
       0.1.1275); defaults to latest.
-    digest: 75102449e6c3cfe4bd209d0c6cd3bae728539bd3eeb7d2572b09a04000347b81
+    digest: f4ccea78582b49213fcff1f6f8ab007da869f4ab2d174007ec4a5b3c3090c777
     home: https://github.com/yetone/magpie
     keywords:
     - magpie
